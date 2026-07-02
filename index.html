@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>おんぷノート — ピアノ練習手帳</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="おんぷノート">
+<meta name="theme-color" content="#20263b">
 <style>
   :root{
     --paper:#f6f2e9;
@@ -250,21 +254,26 @@
 function todayStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
 function fmtDate(s){ const d=new Date(s+"T00:00:00"); return `${d.getMonth()+1}月${d.getDate()}日`; }
 
+// ブラウザのlocalStorageに保存します（この端末・このブラウザ内だけに残ります）
 async function loadDay(dateKey){
   try{
-    const r = await window.storage.get('diary:'+dateKey, false);
-    return r ? JSON.parse(r.value) : {date:dateKey, diary:'', correct:0, total:0, seconds:0, recorded:false};
+    const raw = localStorage.getItem('diary:'+dateKey);
+    return raw ? JSON.parse(raw) : {date:dateKey, diary:'', correct:0, total:0, seconds:0, recorded:false};
   }catch(e){
     return {date:dateKey, diary:'', correct:0, total:0, seconds:0, recorded:false};
   }
 }
 async function saveDay(dateKey, data){
-  try{ await window.storage.set('diary:'+dateKey, JSON.stringify(data), false); }catch(e){ console.error('save failed', e); }
+  try{ localStorage.setItem('diary:'+dateKey, JSON.stringify(data)); }catch(e){ console.error('save failed', e); }
 }
 async function listDays(){
   try{
-    const r = await window.storage.list('diary:', false);
-    return r ? r.keys.map(k=>k.replace('diary:','')).sort().reverse() : [];
+    const keys = [];
+    for(let i=0;i<localStorage.length;i++){
+      const k = localStorage.key(i);
+      if(k && k.startsWith('diary:')) keys.push(k.replace('diary:',''));
+    }
+    return keys.sort().reverse();
   }catch(e){ return []; }
 }
 
