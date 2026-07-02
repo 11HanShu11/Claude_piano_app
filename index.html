@@ -100,6 +100,24 @@
 
   .staff-wrap{ display:flex; justify-content:center; padding:10px 0 4px; }
   .keyboard-wrap{ margin-top:12px; padding:0 4px; }
+
+  /* 練習メニュー */
+  .menu-lead{ font-size:13px; color:var(--ink-soft); margin:2px 0 14px; }
+  .menu-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .menu-btn{
+    background:var(--paper); border:1.5px solid var(--ink); color:var(--ink);
+    border-radius:12px; padding:18px 10px; display:flex; flex-direction:column;
+    align-items:center; gap:5px; text-align:center;
+  }
+  .menu-btn:hover{ background:#fff; }
+  .menu-btn .menu-ic{ font-size:26px; color:var(--brass); font-family:serif; line-height:1; }
+  .menu-btn .menu-t{ font-size:15px; font-weight:700; }
+  .menu-btn .menu-d{ font-size:11px; color:var(--ink-soft); }
+  .quiz-head{ display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+  .btn-back{ padding:6px 12px; font-size:12.5px; }
+  .ear-wrap{ text-align:center; padding:24px 0 8px; }
+  .ear-play{ font-size:16px; padding:16px 28px; border-radius:30px; }
+  .ear-hint{ font-size:12.5px; color:var(--ink-soft); margin:14px 0 0; }
   .clef-toggle, .range-toggle{ display:flex; gap:6px; }
   .toggle-btn{
     background:var(--paper); border:1.5px solid var(--ink-soft); color:var(--ink-soft);
@@ -196,26 +214,68 @@
 
   <!-- 練習 -->
   <section id="tab-practice" class="active">
-    <div class="card">
-      <h2><span class="num">01</span> 音符よみトレーニング</h2>
-      <div class="row between">
-        <div class="clef-toggle">
-          <button class="toggle-btn active" data-clef="treble">ト音記号</button>
-          <button class="toggle-btn" data-clef="bass">ヘ音記号</button>
-        </div>
-        <div class="range-toggle">
-          <button class="toggle-btn active" data-range="basic">基本</button>
-          <button class="toggle-btn" data-range="wide">ひろめ</button>
+
+    <!-- メニュー画面 -->
+    <div id="practiceMenu">
+      <div class="card">
+        <h2><span class="num">01</span> 練習メニュー</h2>
+        <p class="menu-lead">やりたい練習を選んでください。</p>
+        <div class="menu-grid">
+          <button class="menu-btn" data-mode="note-white">
+            <span class="menu-ic">♪</span><span class="menu-t">音階読み</span><span class="menu-d">白鍵（ドレミ）</span>
+          </button>
+          <button class="menu-btn" data-mode="note-sharp">
+            <span class="menu-ic">♯</span><span class="menu-t">音階読み</span><span class="menu-d">シャープあり</span>
+          </button>
+          <button class="menu-btn" data-mode="duration">
+            <span class="menu-ic">𝅘𝅥</span><span class="menu-t">音符の種類</span><span class="menu-d">四分音符・全音符など</span>
+          </button>
+          <button class="menu-btn" data-mode="key">
+            <span class="menu-ic">𝄞</span><span class="menu-t">調・調号</span><span class="menu-d">ハ長調・ト長調など</span>
+          </button>
+          <button class="menu-btn" data-mode="ear-note">
+            <span class="menu-ic">🔊</span><span class="menu-t">耳で音当て</span><span class="menu-d">鳴った音をドレミで</span>
+          </button>
+          <button class="menu-btn" data-mode="ear-chord">
+            <span class="menu-ic">🎵</span><span class="menu-t">和音の響き</span><span class="menu-d">明るい・暗いを聴き分け</span>
+          </button>
         </div>
       </div>
-
-      <div class="staff-wrap"><svg id="staffSvg" width="260" height="140" viewBox="0 0 260 140"></svg></div>
-
-      <div class="choice-grid" id="choiceGrid"></div>
-      <div class="feedback" id="feedback"></div>
-      <div class="keyboard-wrap"><svg id="kbdSvg" viewBox="0 0 280 90" width="100%"></svg></div>
-      <div class="score-line">今日: <b id="todayCorrect">0</b>/<b id="todayTotal">0</b> 問正解　経過時間 <b id="todayTime">0:00</b></div>
     </div>
+
+    <!-- クイズ画面 -->
+    <div id="practiceQuiz" style="display:none;">
+      <div class="card">
+        <div class="quiz-head">
+          <button class="btn-ghost btn-back" id="backToMenu">← 選び直す</button>
+          <h2 id="quizTitle" style="margin:0; font-size:16px;">練習</h2>
+        </div>
+
+        <div class="row between" id="clefRangeRow">
+          <div class="clef-toggle">
+            <button class="toggle-btn active" data-clef="treble">ト音記号</button>
+            <button class="toggle-btn" data-clef="bass">ヘ音記号</button>
+          </div>
+          <div class="range-toggle">
+            <button class="toggle-btn active" data-range="basic">基本</button>
+            <button class="toggle-btn" data-range="wide">ひろめ</button>
+          </div>
+        </div>
+
+        <div class="staff-wrap" id="staffWrap"><svg id="staffSvg" width="260" height="140" viewBox="0 0 260 140"></svg></div>
+
+        <div class="ear-wrap" id="earWrap" style="display:none;">
+          <button class="btn-brass ear-play" id="earPlay">▶ もう一度きく</button>
+          <p class="ear-hint" id="earHint"></p>
+        </div>
+
+        <div class="choice-grid" id="choiceGrid"></div>
+        <div class="feedback" id="feedback"></div>
+        <div class="keyboard-wrap" id="keyboardWrap"><svg id="kbdSvg" viewBox="0 0 280 90" width="100%"></svg></div>
+        <div class="score-line">今日: <b id="todayCorrect">0</b>/<b id="todayTotal">0</b> 問正解　経過時間 <b id="todayTime">0:00</b></div>
+      </div>
+    </div>
+
   </section>
 
   <!-- メトロノーム -->
@@ -328,7 +388,46 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
 });
 
 /* =========================================================
-   01. 音符よみトレーニング
+   01. 練習メニュー ⇄ クイズ の切替
+   ========================================================= */
+let currentMode = null; // note-white | note-sharp | duration | key | ear-note | ear-chord
+const QUIZ_TITLES = {
+  'note-white':'音階読み（白鍵）',
+  'note-sharp':'音階読み（♯あり）',
+  'duration':'音符の種類',
+  'key':'調・調号',
+  'ear-note':'耳で音当て',
+  'ear-chord':'和音の響き'
+};
+
+function showMenu(){
+  document.getElementById('practiceMenu').style.display = '';
+  document.getElementById('practiceQuiz').style.display = 'none';
+  currentMode = null;
+}
+function startQuiz(mode){
+  currentMode = mode;
+  document.getElementById('practiceMenu').style.display = 'none';
+  document.getElementById('practiceQuiz').style.display = '';
+  document.getElementById('quizTitle').textContent = QUIZ_TITLES[mode];
+  const isNote = (mode==='note-white' || mode==='note-sharp');
+  const isEar  = (mode==='ear-note' || mode==='ear-chord');
+  // ト音/ヘ音・音域トグルと鍵盤は「音階読み」系のみ
+  document.getElementById('clefRangeRow').style.display = isNote ? '' : 'none';
+  document.getElementById('keyboardWrap').style.display = isNote ? '' : 'none';
+  // 五線譜は耳トレ以外で表示、耳トレでは再生ボタンを表示
+  document.getElementById('staffWrap').style.display = isEar ? 'none' : '';
+  document.getElementById('earWrap').style.display = isEar ? '' : 'none';
+  newQuestion();
+}
+document.querySelectorAll('.menu-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>startQuiz(btn.dataset.mode));
+});
+document.getElementById('backToMenu').addEventListener('click', showMenu);
+document.getElementById('earPlay').addEventListener('click', replayEar);
+
+/* =========================================================
+   音符よみトレーニングのデータ
    ========================================================= */
 const SOLFEGE = {C:'ド', D:'レ', E:'ミ', F:'ファ', G:'ソ', A:'ラ', B:'シ'};
 // pos: 0=最下線, 偶数=線, 奇数=間, 5線譜=pos0,2,4,6,8
@@ -348,6 +447,33 @@ const NOTE_FREQ = {
   'C5':523.25,'D5':587.33,'E5':659.25,'F5':698.46,'G5':783.99
 };
 
+// ♯音の周波数（黒鍵）
+const SHARP_FREQ = {
+  'C#3':138.59,'D#3':155.56,'F#3':185.00,'G#3':207.65,'A#3':233.08,
+  'C#4':277.18,'D#4':311.13,'F#4':369.99,'G#4':415.30,'A#4':466.16,
+  'C#5':554.37
+};
+const SHARP_SOLFEGE = {'C#':'ド♯','D#':'レ♯','F#':'ファ♯','G#':'ソ♯','A#':'ラ♯'};
+
+// 音符の種類クイズ用（見た目→名前）
+const DURATIONS = [
+  {id:'whole',   name:'全音符',   beats:'4拍'},
+  {id:'half',    name:'二分音符', beats:'2拍'},
+  {id:'quarter', name:'四分音符', beats:'1拍'},
+  {id:'eighth',  name:'八分音符', beats:'半拍'}
+];
+
+// 調・調号クイズ用（♯・♭系の主要な長調）
+const KEYS = [
+  {name:'ハ長調',  sig:{type:'none', count:0}},
+  {name:'ト長調',  sig:{type:'sharp',count:1}},
+  {name:'ニ長調',  sig:{type:'sharp',count:2}},
+  {name:'イ長調',  sig:{type:'sharp',count:3}},
+  {name:'ヘ長調',  sig:{type:'flat', count:1}},
+  {name:'変ロ長調',sig:{type:'flat', count:2}},
+  {name:'変ホ長調',sig:{type:'flat', count:3}}
+];
+
 let clef = 'treble';
 let range = 'basic';
 let currentPos = null;
@@ -357,10 +483,10 @@ let quizStartTime = Date.now();
 let todayCorrectCt = 0, todayTotalCt = 0;
 
 // クイズの音を鳴らす（ピアノ風のやわらかい音）
-function playNote(fullNote){
+function playNoteByName(name){
   ensureAudio();
   audioCtx.resume();
-  const freq = NOTE_FREQ[fullNote];
+  const freq = NOTE_FREQ[name] || SHARP_FREQ[name];
   if(!freq) return;
   const t = audioCtx.currentTime;
   const osc = audioCtx.createOscillator();
@@ -374,13 +500,31 @@ function playNote(fullNote){
   osc.start(t); osc.stop(t+1.2);
 }
 
+// 複数の周波数を同時に鳴らす（和音用）
+function playChordFreqs(freqs){
+  ensureAudio();
+  audioCtx.resume();
+  const t = audioCtx.currentTime;
+  freqs.forEach(freq=>{
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.22, t+0.03);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t+1.4);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t+1.5);
+  });
+}
+
 function poolFor(){
   if(clef==='treble') return range==='basic'?TREBLE_BASIC:TREBLE_WIDE;
   return range==='basic'?BASS_BASIC:BASS_WIDE;
 }
 function letterTableFor(){ return clef==='treble'?TREBLE_LETTERS:BASS_LETTERS; }
 
-function drawStaff(pos){
+function drawStaff(pos, accidental){
   const svg = document.getElementById('staffSvg');
   const cx = 130, baseY = 100, lineGap = 10;
   let s = '';
@@ -409,6 +553,10 @@ function drawStaff(pos){
         s += `<line x1="${cx-16}" y1="${ly}" x2="${cx+16}" y2="${ly}" stroke="#20263b" stroke-width="1.4"/>`;
       }
     }
+  }
+  // ♯記号（音符の左に）
+  if(accidental==='#'){
+    s += `<text x="${cx-32}" y="${y+7}" font-size="26" font-family=serif fill="#20263b">♯</text>`;
   }
   s += `<ellipse cx="${cx}" cy="${y}" rx="9" ry="7" fill="#7c2f2f" transform="rotate(-18 ${cx} ${y})"/>`;
   svg.innerHTML = s;
@@ -453,51 +601,274 @@ function drawKeyboard(highlightNote){
   svg.innerHTML = s;
 }
 
+// 音符の種類（全/二分/四分/八分）を五線譜中央に描く
+function drawDurationNote(id){
+  const svg = document.getElementById('staffSvg');
+  const cx = 130, baseY = 100, lineGap = 10;
+  let s = '';
+  for(let i=0;i<5;i++){
+    const y = baseY - i*lineGap*2;
+    s += `<line x1="30" y1="${y}" x2="230" y2="${y}" stroke="#20263b" stroke-width="1.4"/>`;
+  }
+  // 符頭は第3線（pos4）あたりに置く
+  const y = baseY - 4*lineGap;
+  const filled = (id==='quarter' || id==='eighth');
+  const hasStem = (id!=='whole');
+  const ink = '#20263b';
+  // 符頭
+  if(filled){
+    s += `<ellipse cx="${cx}" cy="${y}" rx="9" ry="7" fill="${ink}" transform="rotate(-18 ${cx} ${y})"/>`;
+  }else{
+    s += `<ellipse cx="${cx}" cy="${y}" rx="9" ry="7" fill="none" stroke="${ink}" stroke-width="2.5" transform="rotate(-18 ${cx} ${y})"/>`;
+  }
+  // 符尾（ステム）
+  if(hasStem){
+    s += `<line x1="${cx+8}" y1="${y-2}" x2="${cx+8}" y2="${y-48}" stroke="${ink}" stroke-width="2"/>`;
+  }
+  // 旗（八分音符）
+  if(id==='eighth'){
+    s += `<path d="M ${cx+8} ${y-48} q 16 8 12 26" fill="none" stroke="${ink}" stroke-width="3"/>`;
+  }
+  svg.innerHTML = s;
+}
+
+// 調号（♯／♭を規定数だけ並べる）を描く
+function drawKeySignature(sig){
+  const svg = document.getElementById('staffSvg');
+  const baseY = 100, lineGap = 10;
+  let s = '';
+  for(let i=0;i<5;i++){
+    const y = baseY - i*lineGap*2;
+    s += `<line x1="30" y1="${y}" x2="230" y2="${y}" stroke="#20263b" stroke-width="1.4"/>`;
+  }
+  // ト音記号
+  s += `<text x="38" y="${baseY-4}" font-size="62" font-family=serif fill="#20263b">𝄞</text>`;
+  // ♯の位置（ト音記号: F5,C5,G5,...）pos基準
+  const sharpPos = [9,6,10,7,4,8,5];
+  const flatPos  = [4,7,3,6,2,5,1];
+  let x = 92;
+  if(sig.type==='sharp'){
+    for(let i=0;i<sig.count;i++){
+      const y = baseY - sharpPos[i]*lineGap;
+      s += `<text x="${x}" y="${y+7}" font-size="24" font-family=serif fill="#20263b">♯</text>`;
+      x += 15;
+    }
+  }else if(sig.type==='flat'){
+    for(let i=0;i<sig.count;i++){
+      const y = baseY - flatPos[i]*lineGap;
+      s += `<text x="${x}" y="${y+7}" font-size="24" font-family=serif fill="#20263b">♭</text>`;
+      x += 15;
+    }
+  }else{
+    s += `<text x="120" y="${baseY-30}" font-size="14" fill="#4b526b">（調号なし）</text>`;
+  }
+  svg.innerHTML = s;
+}
+
+/* ---------- 出題のディスパッチ ---------- */
+let currentAnswer = null;   // 正解の識別子（モードごとに意味が変わる）
+
 function newQuestion(){
+  const fb = document.getElementById('feedback');
+  fb.textContent = ''; fb.className = 'feedback';
+  if(currentMode==='note-white' || currentMode==='note-sharp') buildNoteQuestion();
+  else if(currentMode==='duration') buildDurationQuestion();
+  else if(currentMode==='key') buildKeyQuestion();
+  else if(currentMode==='ear-note') buildEarNoteQuestion();
+  else if(currentMode==='ear-chord') buildEarChordQuestion();
+}
+
+/* ===== 音階読み（白鍵／♯あり） ===== */
+let currentAccidental = '';
+function buildNoteQuestion(){
+  const useSharp = (currentMode==='note-sharp');
   const pool = poolFor();
   currentPos = pool[Math.floor(Math.random()*pool.length)];
   currentFullNote = letterTableFor()[currentPos];
   currentLetter = currentFullNote.replace(/[0-9]/g,'');
-  drawStaff(currentPos);
-  renderChoices();
+
+  // ♯モードでは、黒鍵が存在する音のとき50%で♯化する
+  currentAccidental = '';
+  if(useSharp && ['C','D','F','G','A'].includes(currentLetter) && Math.random()<0.5){
+    currentAccidental = '#';
+  }
+  drawStaff(currentPos, currentAccidental);
   drawKeyboard(null);
-  document.getElementById('feedback').textContent = '';
-  document.getElementById('feedback').className = 'feedback';
+  renderNoteChoices(useSharp);
 }
 
-function renderChoices(){
+function renderNoteChoices(useSharp){
   const grid = document.getElementById('choiceGrid');
-  const letters = ['C','D','E','F','G','A','B'].sort(()=>Math.random()-0.5).slice(0,8-1);
-  if(!letters.includes(currentLetter)) letters[0] = currentLetter;
-  const shuffled = letters.sort(()=>Math.random()-0.5);
+  const correctLabel = currentAccidental==='#'
+    ? SHARP_SOLFEGE[currentLetter+'#'] : SOLFEGE[currentLetter];
+  // 選択肢プール
+  let pool = ['C','D','E','F','G','A','B'].map(l=>SOLFEGE[l]);
+  if(useSharp) pool = pool.concat(Object.values(SHARP_SOLFEGE));
+  pool = pool.filter(x=>x!==correctLabel);
+  pool.sort(()=>Math.random()-0.5);
+  let choices = pool.slice(0,3);
+  choices.push(correctLabel);
+  choices.sort(()=>Math.random()-0.5);
+
   grid.innerHTML = '';
-  shuffled.forEach(l=>{
+  choices.forEach(label=>{
     const b = document.createElement('button');
-    b.textContent = SOLFEGE[l];
-    b.addEventListener('click', ()=>answer(l,b));
+    b.textContent = label;
+    b.addEventListener('click', ()=>answerNote(label, b, correctLabel));
     grid.appendChild(b);
   });
 }
 
-function answer(letter, btnEl){
+function answerNote(label, btnEl, correctLabel){
   document.querySelectorAll('#choiceGrid button').forEach(b=>b.disabled=true);
   todayTotalCt++;
   const fb = document.getElementById('feedback');
-  playNote(currentFullNote);      // 正解の音を鳴らす
-  drawKeyboard(currentFullNote);  // 鍵盤で位置を示す
-  if(letter===currentLetter){
+  // 音を鳴らす（♯なら黒鍵の周波数）
+  const noteKey = currentAccidental==='#'
+    ? currentLetter+'#'+currentFullNote.replace(/[^0-9]/g,'')
+    : currentFullNote;
+  playNoteByName(noteKey);
+  drawKeyboard(noteKey);
+  if(label===correctLabel){
     btnEl.classList.add('correct');
-    fb.textContent = '正解！ ' + SOLFEGE[currentLetter];
-    fb.className = 'feedback ok';
+    fb.textContent = '正解！ ' + correctLabel; fb.className = 'feedback ok';
     todayCorrectCt++;
   }else{
     btnEl.classList.add('wrong');
-    fb.textContent = '正解は ' + SOLFEGE[currentLetter] + ' でした';
-    fb.className = 'feedback ng';
+    fb.textContent = '正解は ' + correctLabel + ' でした'; fb.className = 'feedback ng';
   }
-  updateScoreLine();
-  persistPractice();
+  updateScoreLine(); persistPractice();
   setTimeout(newQuestion, 1100);
+}
+
+/* ===== 音符の種類 ===== */
+function buildDurationQuestion(){
+  const item = DURATIONS[Math.floor(Math.random()*DURATIONS.length)];
+  currentAnswer = item.id;
+  drawDurationNote(item.id);
+  const choices = [...DURATIONS].sort(()=>Math.random()-0.5);
+  const grid = document.getElementById('choiceGrid');
+  grid.innerHTML = '';
+  choices.forEach(d=>{
+    const b = document.createElement('button');
+    b.textContent = d.name;
+    b.addEventListener('click', ()=>answerGeneric(d.id, b, item.id, item.name+'（'+item.beats+'）'));
+    grid.appendChild(b);
+  });
+}
+
+/* ===== 調・調号 ===== */
+function buildKeyQuestion(){
+  const item = KEYS[Math.floor(Math.random()*KEYS.length)];
+  currentAnswer = item.name;
+  drawKeySignature(item.sig);
+  const choices = [...KEYS].sort(()=>Math.random()-0.5).slice(0,4);
+  if(!choices.find(k=>k.name===item.name)) choices[0] = item;
+  choices.sort(()=>Math.random()-0.5);
+  const grid = document.getElementById('choiceGrid');
+  grid.innerHTML = '';
+  choices.forEach(k=>{
+    const b = document.createElement('button');
+    b.textContent = k.name;
+    b.addEventListener('click', ()=>answerGeneric(k.name, b, item.name, item.name));
+    grid.appendChild(b);
+  });
+}
+
+/* 音符の種類・調で共通の回答処理（音は鳴らさない） */
+function answerGeneric(chosen, btnEl, correct, correctText){
+  document.querySelectorAll('#choiceGrid button').forEach(b=>b.disabled=true);
+  todayTotalCt++;
+  const fb = document.getElementById('feedback');
+  if(chosen===correct){
+    btnEl.classList.add('correct');
+    fb.textContent = '正解！ ' + correctText; fb.className = 'feedback ok';
+    todayCorrectCt++;
+  }else{
+    btnEl.classList.add('wrong');
+    fb.textContent = '正解は ' + correctText + ' でした'; fb.className = 'feedback ng';
+  }
+  updateScoreLine(); persistPractice();
+  setTimeout(newQuestion, 1200);
+}
+
+/* ===== 耳で音当て（単音）===== */
+let earCurrentNote = null; // 'C4' など
+let earReplayFn = null;    // 「もう一度きく」で呼ぶ関数
+
+function buildEarNoteQuestion(){
+  // 出題は1オクターブ（C4〜B4）の白鍵に絞ると初学者向き
+  const notes = ['C4','D4','E4','F4','G4','A4','B4'];
+  earCurrentNote = notes[Math.floor(Math.random()*notes.length)];
+  document.getElementById('earHint').textContent = '鳴った音はドレミのどれ？';
+  earReplayFn = ()=>playNoteByName(earCurrentNote);
+  setTimeout(earReplayFn, 250); // 出題時に自動で1回鳴らす
+
+  const correctLetter = earCurrentNote.replace(/[0-9]/g,'');
+  const correctLabel = SOLFEGE[correctLetter];
+  let pool = ['C','D','E','F','G','A','B'].map(l=>SOLFEGE[l]).filter(x=>x!==correctLabel);
+  pool.sort(()=>Math.random()-0.5);
+  let choices = pool.slice(0,3); choices.push(correctLabel);
+  choices.sort(()=>Math.random()-0.5);
+
+  const grid = document.getElementById('choiceGrid');
+  grid.innerHTML = '';
+  choices.forEach(label=>{
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.addEventListener('click', ()=>answerEar(label, b, correctLabel, ()=>playNoteByName(earCurrentNote)));
+    grid.appendChild(b);
+  });
+}
+
+/* ===== 和音の響き（メジャー／マイナー）===== */
+const CHORDS = [
+  {name:'メジャー（明るい）', label:'明るい', semis:[0,4,7]},
+  {name:'マイナー（暗い）',   label:'暗い',   semis:[0,3,7]}
+];
+function semisToFreqs(rootFreq, semis){
+  return semis.map(s=>rootFreq*Math.pow(2, s/12));
+}
+function buildEarChordQuestion(){
+  const roots = [261.63, 293.66, 349.23, 392.00, 440.00]; // C4,D4,F4,G4,A4
+  const root = roots[Math.floor(Math.random()*roots.length)];
+  const chord = CHORDS[Math.floor(Math.random()*CHORDS.length)];
+  const freqs = semisToFreqs(root, chord.semis);
+  document.getElementById('earHint').textContent = '明るい響き？ 暗い響き？';
+  earReplayFn = ()=>playChordFreqs(freqs);
+  setTimeout(earReplayFn, 250);
+
+  const choices = [...CHORDS].sort(()=>Math.random()-0.5);
+  const grid = document.getElementById('choiceGrid');
+  grid.innerHTML = '';
+  choices.forEach(c=>{
+    const b = document.createElement('button');
+    b.textContent = c.label;
+    b.addEventListener('click', ()=>answerEar(c.label, b, chord.label, ()=>playChordFreqs(freqs), chord.name));
+    grid.appendChild(b);
+  });
+}
+
+// 「もう一度きく」ボタン
+function replayEar(){ if(earReplayFn) earReplayFn(); }
+
+// 耳トレ共通の回答処理（正解時にもう一度鳴らして確認できる）
+function answerEar(chosen, btnEl, correct, replay, correctText){
+  document.querySelectorAll('#choiceGrid button').forEach(b=>b.disabled=true);
+  todayTotalCt++;
+  const fb = document.getElementById('feedback');
+  const shown = correctText || correct;
+  if(chosen===correct){
+    btnEl.classList.add('correct');
+    fb.textContent = '正解！ ' + shown; fb.className = 'feedback ok';
+    todayCorrectCt++;
+  }else{
+    btnEl.classList.add('wrong');
+    fb.textContent = '正解は ' + shown + ' でした'; fb.className = 'feedback ng';
+  }
+  if(replay) setTimeout(replay, 300); // 正解の音をもう一度
+  updateScoreLine(); persistPractice();
+  setTimeout(newQuestion, 1600);
 }
 
 function updateScoreLine(){
@@ -506,7 +877,7 @@ function updateScoreLine(){
   const sec = Math.floor((Date.now()-quizStartTime)/1000);
   document.getElementById('todayTime').textContent = Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0');
 }
-setInterval(updateScoreLine, 1000);
+setInterval(()=>{ if(currentMode) updateScoreLine(); }, 1000);
 
 async function persistPractice(){
   const key = todayStr();
@@ -526,7 +897,7 @@ document.querySelectorAll('[data-range]').forEach(b=>b.addEventListener('click',
   b.classList.add('active'); range=b.dataset.range; newQuestion();
 }));
 
-newQuestion();
+showMenu(); // 起動時はメニューを表示
 
 /* =========================================================
    02. メトロノーム (Web Audio, ルックアヘッド方式)
