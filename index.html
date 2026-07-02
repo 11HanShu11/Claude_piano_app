@@ -99,6 +99,7 @@
   .choice-grid button.wrong{ background:var(--wine); border-color:var(--wine); color:#fff; }
 
   .staff-wrap{ display:flex; justify-content:center; padding:10px 0 4px; }
+  .keyboard-wrap{ margin-top:12px; padding:0 4px; }
   .clef-toggle, .range-toggle{ display:flex; gap:6px; }
   .toggle-btn{
     background:var(--paper); border:1.5px solid var(--ink-soft); color:var(--ink-soft);
@@ -138,9 +139,35 @@
     background:#fffef9;
   }
   .day-entry .stats{ font-size:12.5px; color:var(--ink-soft); margin-top:6px; }
+  .field-label{ font-size:12.5px; font-weight:700; color:var(--ink); margin:12px 0 6px; }
+  .song-row{ display:flex; gap:6px; margin-bottom:6px; }
+  .song-row input{
+    flex:1; border:1px solid var(--paper-line); border-radius:8px; padding:8px;
+    font-family:inherit; font-size:14px; background:#fffef9;
+  }
+  .song-row button{ background:var(--paper); border:1.5px solid var(--ink-soft); color:var(--ink-soft); padding:0 12px; font-size:16px; border-radius:8px; }
+  .add-song{ background:transparent; border:1.5px dashed var(--brass); color:var(--brass); padding:8px 12px; font-size:13px; border-radius:8px; }
+  .song-tag{ display:inline-block; background:#fdf3ef; border:1px solid var(--paper-line); border-radius:6px; padding:3px 9px; font-size:13px; margin:2px 4px 2px 0; }
   .streak{ text-align:center; padding:6px 0 2px; }
   .streak .n{ font-size:34px; font-family:"Hiragino Mincho ProN",serif; color:var(--wine); }
   .streak .l{ font-size:12px; color:var(--ink-soft); }
+
+  /* calendar */
+  .cal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .cal-head h2{ font-size:16px; }
+  .cal-nav{ background:transparent; color:var(--ink); font-size:22px; padding:2px 12px; line-height:1; }
+  .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .cal-cell{ aspect-ratio:1; display:flex; align-items:center; justify-content:center; position:relative; font-size:12px; color:var(--ink-soft); border-radius:8px; }
+  .cal-cell.dow{ font-weight:700; color:var(--ink); aspect-ratio:auto; padding:2px 0; }
+  .cal-cell.empty{ background:transparent; }
+  .cal-cell.day{ background:var(--paper); cursor:pointer; }
+  .cal-cell.selected{ outline:2px solid var(--brass); }
+  .cal-cell.today{ outline:2px solid var(--ink); }
+  .cal-cell .daynum{ position:absolute; top:3px; left:5px; font-size:9.5px; color:var(--ink-soft); }
+  .cal-cell .hanamaru{ font-size:20px; color:var(--wine); }
+  .cal-cell.practiced{ background:#fdf3ef; }
+  .cal-legend{ margin-top:12px; font-size:12px; color:var(--ink-soft); text-align:center; }
+  .hanamaru-mini{ color:var(--wine); font-size:14px; }
 
   nav.tabs{
     position:fixed; bottom:0; left:0; right:0;
@@ -186,6 +213,7 @@
 
       <div class="choice-grid" id="choiceGrid"></div>
       <div class="feedback" id="feedback"></div>
+      <div class="keyboard-wrap"><svg id="kbdSvg" viewBox="0 0 280 90" width="100%"></svg></div>
       <div class="score-line">今日: <b id="todayCorrect">0</b>/<b id="todayTotal">0</b> 問正解　経過時間 <b id="todayTime">0:00</b></div>
     </div>
   </section>
@@ -226,13 +254,18 @@
 
   <!-- 日記 -->
   <section id="tab-diary">
-    <div class="card streak">
-      <div class="n" id="streakNum">0</div>
-      <div class="l">日 連続練習中</div>
+    <div class="card">
+      <div class="cal-head">
+        <button class="cal-nav" id="calPrev">‹</button>
+        <h2 id="calTitle" style="margin:0;">　</h2>
+        <button class="cal-nav" id="calNext">›</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-legend"><span class="hanamaru-mini">✿</span> 練習した日　（日付をタップすると下に表示されます）</div>
     </div>
     <div class="card">
-      <h2><span class="num">04</span> 今日の日記</h2>
-      <div class="day-entry" id="todayEntry"></div>
+      <h2 id="selectedTitle"><span class="num">04</span> 選択中の日</h2>
+      <div class="day-entry" id="selectedEntry"></div>
     </div>
     <div class="card">
       <h2>これまでの記録</h2>
@@ -255,12 +288,18 @@ function todayStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
 function fmtDate(s){ const d=new Date(s+"T00:00:00"); return `${d.getMonth()+1}月${d.getDate()}日`; }
 
 // ブラウザのlocalStorageに保存します（この端末・このブラウザ内だけに残ります）
+function defaultDay(dateKey){
+  return {date:dateKey, songs:[], diary:'', correct:0, total:0, seconds:0, recorded:false};
+}
 async function loadDay(dateKey){
   try{
     const raw = localStorage.getItem('diary:'+dateKey);
-    return raw ? JSON.parse(raw) : {date:dateKey, diary:'', correct:0, total:0, seconds:0, recorded:false};
+    if(!raw) return defaultDay(dateKey);
+    const d = JSON.parse(raw);
+    if(!Array.isArray(d.songs)) d.songs = []; // 念のための保険
+    return d;
   }catch(e){
-    return {date:dateKey, diary:'', correct:0, total:0, seconds:0, recorded:false};
+    return defaultDay(dateKey);
   }
 }
 async function saveDay(dateKey, data){
@@ -301,12 +340,39 @@ const BASS_BASIC = [3,4,5,6,7,8]; // C3~A3
 const BASS_WIDE  = [0,1,2,3,4,5,6,7,8,9,10]; // G2~C4
 const BASS_LETTERS = {'0':'G2','1':'A2','2':'B2','3':'C3','4':'D3','5':'E3','6':'F3','7':'G3','8':'A3','9':'B3','10':'C4'};
 
+// 音名（オクターブ付き）→周波数(Hz)。実際に鳴らす音の高さに使います
+const NOTE_FREQ = {
+  'G2':98.00,'A2':110.00,'B2':123.47,
+  'C3':130.81,'D3':146.83,'E3':164.81,'F3':174.61,'G3':196.00,'A3':220.00,'B3':246.94,
+  'C4':261.63,'D4':293.66,'E4':329.63,'F4':349.23,'G4':392.00,'A4':440.00,'B4':493.88,
+  'C5':523.25,'D5':587.33,'E5':659.25,'F5':698.46,'G5':783.99
+};
+
 let clef = 'treble';
 let range = 'basic';
 let currentPos = null;
-let currentLetter = null;
+let currentLetter = null;   // ドレミ判定用（C〜B）
+let currentFullNote = null; // 音を鳴らす用（C4 など）
 let quizStartTime = Date.now();
 let todayCorrectCt = 0, todayTotalCt = 0;
+
+// クイズの音を鳴らす（ピアノ風のやわらかい音）
+function playNote(fullNote){
+  ensureAudio();
+  audioCtx.resume();
+  const freq = NOTE_FREQ[fullNote];
+  if(!freq) return;
+  const t = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.exponentialRampToValueAtTime(0.35, t+0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t+1.1);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(t); osc.stop(t+1.2);
+}
 
 function poolFor(){
   if(clef==='treble') return range==='basic'?TREBLE_BASIC:TREBLE_WIDE;
@@ -348,12 +414,53 @@ function drawStaff(pos){
   svg.innerHTML = s;
 }
 
+// 鍵盤を描く。highlightNote が指定されればその鍵を光らせる（例:'C4'）
+function drawKeyboard(highlightNote){
+  const svg = document.getElementById('kbdSvg');
+  // 表示するオクターブは記号に応じて切り替え
+  const octaves = clef==='treble' ? [4,5] : [2,3];
+  const whiteOrder = ['C','D','E','F','G','A','B'];
+  const blackAfter = {C:'C#',D:'D#',F:'F#',G:'G#',A:'A#'}; // E,Bの後には黒鍵なし
+  const whiteW = 20, whiteH = 84, blackW = 12, blackH = 52;
+  let whites = [];
+  octaves.forEach(oct=>whiteOrder.forEach(n=>whites.push(n+oct)));
+  const totalW = whites.length*whiteW;
+  const scale = 280/totalW;
+  let s = `<g transform="scale(${scale},1)">`;
+  // 白鍵
+  whites.forEach((note,i)=>{
+    const x = i*whiteW;
+    const isHi = (note===highlightNote);
+    s += `<rect x="${x}" y="0" width="${whiteW-1}" height="${whiteH}" rx="2"
+           fill="${isHi?'var(--brass-light)':'#fffef9'}" stroke="#20263b" stroke-width="1"/>`;
+    // ドの位置に「ド」ラベル
+    if(note.startsWith('C')){
+      s += `<text x="${x+whiteW/2}" y="${whiteH-6}" font-size="9" text-anchor="middle" fill="#4b526b">ド</text>`;
+    }
+  });
+  // 黒鍵（白鍵の境目に重ねる）
+  whites.forEach((note,i)=>{
+    const letter = note.replace(/[0-9]/g,'');
+    if(blackAfter[letter]){
+      const x = i*whiteW + whiteW - blackW/2 - 0.5;
+      const bn = blackAfter[letter]+note.replace(/[^0-9]/g,'');
+      const isHi = (bn===highlightNote);
+      s += `<rect x="${x}" y="0" width="${blackW}" height="${blackH}" rx="1.5"
+             fill="${isHi?'var(--brass)':'#20263b'}" stroke="#20263b" stroke-width="1"/>`;
+    }
+  });
+  s += `</g>`;
+  svg.innerHTML = s;
+}
+
 function newQuestion(){
   const pool = poolFor();
   currentPos = pool[Math.floor(Math.random()*pool.length)];
-  currentLetter = letterTableFor()[currentPos].replace(/[0-9]/g,'');
+  currentFullNote = letterTableFor()[currentPos];
+  currentLetter = currentFullNote.replace(/[0-9]/g,'');
   drawStaff(currentPos);
   renderChoices();
+  drawKeyboard(null);
   document.getElementById('feedback').textContent = '';
   document.getElementById('feedback').className = 'feedback';
 }
@@ -376,6 +483,8 @@ function answer(letter, btnEl){
   document.querySelectorAll('#choiceGrid button').forEach(b=>b.disabled=true);
   todayTotalCt++;
   const fb = document.getElementById('feedback');
+  playNote(currentFullNote);      // 正解の音を鳴らす
+  drawKeyboard(currentFullNote);  // 鍵盤で位置を示す
   if(letter===currentLetter){
     btnEl.classList.add('correct');
     fb.textContent = '正解！ ' + SOLFEGE[currentLetter];
@@ -388,7 +497,7 @@ function answer(letter, btnEl){
   }
   updateScoreLine();
   persistPractice();
-  setTimeout(newQuestion, 800);
+  setTimeout(newQuestion, 1100);
 }
 
 function updateScoreLine(){
@@ -523,52 +632,158 @@ document.getElementById('recStop').addEventListener('click', ()=>{
 });
 
 /* =========================================================
-   04. 日記 / ログ集約
+   04. 日記 / ログ集約 / カレンダー
    ========================================================= */
+let calYear, calMonth;         // 表示中の年・月(0-11)
+let selectedKey = null;        // 現在選択中の日付 'YYYY-MM-DD'
+
 async function renderDiary(){
-  const key = todayStr();
+  const now = new Date();
+  if(calYear===undefined){ calYear = now.getFullYear(); calMonth = now.getMonth(); }
+  if(selectedKey===null) selectedKey = todayStr(); // 初期は今日を選択
+  await renderSelectedDay();
+  await renderHistory();
+  await renderCalendar();
+}
+
+// 選択中の1日を表示・編集する枠
+async function renderSelectedDay(){
+  const key = selectedKey;
   const day = await loadDay(key);
-  const todayEl = document.getElementById('todayEntry');
-  todayEl.innerHTML = `
-    <div class="date">${fmtDate(key)}（今日）</div>
+  const isToday = (key===todayStr());
+  document.getElementById('selectedTitle').innerHTML =
+    `<span class="num">04</span> ${fmtDate(key)}${isToday?'（今日）':''}`;
+
+  const el = document.getElementById('selectedEntry');
+  const songRows = (day.songs.length? day.songs : ['']).map((s,i)=>`
+    <div class="song-row">
+      <input type="text" class="song-input" data-i="${i}" value="${(s||'').replace(/"/g,'&quot;')}" placeholder="曲名を入力">
+      <button class="del-song" data-i="${i}">×</button>
+    </div>`).join('');
+
+  el.innerHTML = `
     <div class="stats">練習問題: ${day.total}問中 ${day.correct}問正解　/　${day.recorded? '録画あり' : '録画なし'}</div>
-    <textarea id="diaryText" placeholder="今日の練習の振り返りを書きましょう">${day.diary||''}</textarea>
-    <button class="btn-primary" id="saveDiary" style="margin-top:8px;">保存する</button>
+    <div class="field-label">🎵 今日練習した曲</div>
+    <div id="songList">${songRows}</div>
+    <button class="add-song" id="addSong">＋ 曲を追加</button>
+    <div class="field-label">✎ 自由記述</div>
+    <textarea id="diaryText" placeholder="練習の振り返りを書きましょう">${day.diary||''}</textarea>
+    <button class="btn-primary" id="saveDiary" style="margin-top:10px;">保存する</button>
   `;
+
+  // 曲を追加
+  document.getElementById('addSong').addEventListener('click', ()=>{
+    const list = document.getElementById('songList');
+    const i = list.querySelectorAll('.song-row').length;
+    const div = document.createElement('div');
+    div.className = 'song-row';
+    div.innerHTML = `<input type="text" class="song-input" data-i="${i}" placeholder="曲名を入力">
+      <button class="del-song" data-i="${i}">×</button>`;
+    list.appendChild(div);
+    bindDelButtons();
+    div.querySelector('input').focus();
+  });
+  bindDelButtons();
+
+  // 保存
   document.getElementById('saveDiary').addEventListener('click', async ()=>{
+    const songs = [...document.querySelectorAll('#songList .song-input')]
+      .map(inp=>inp.value.trim()).filter(v=>v.length>0);
+    day.songs = songs;
     day.diary = document.getElementById('diaryText').value;
     await saveDay(key, day);
     const b = document.getElementById('saveDiary');
     b.textContent = '保存しました'; setTimeout(()=>b.textContent='保存する',1200);
+    await renderCalendar(); // 記入した日にはなまるを反映
+    await renderHistory();
   });
+}
+function bindDelButtons(){
+  document.querySelectorAll('#songList .del-song').forEach(btn=>{
+    btn.onclick = ()=>{
+      const rows = document.querySelectorAll('#songList .song-row');
+      if(rows.length>1) btn.closest('.song-row').remove();
+      else btn.closest('.song-row').querySelector('input').value = '';
+    };
+  });
+}
 
+// 過去の記録一覧（閲覧用サマリー）
+async function renderHistory(){
   const keys = await listDays();
   const list = document.getElementById('historyList');
-  if(keys.length<=1){ list.innerHTML = '<small class="hint">練習記録がたまるとここに表示されます。</small>'; }
-  else{
-    let html = '';
-    for(const k of keys){
-      if(k===key) continue;
-      const d = await loadDay(k);
-      html += `<div class="day-entry"><div class="date">${fmtDate(k)}</div>
-        <div class="stats">練習: ${d.total}問中${d.correct}問正解　${d.recorded?'・録画あり':''}</div>
-        ${d.diary? `<div style="margin-top:6px; font-size:14px;">${d.diary.replace(/</g,'&lt;')}</div>`:''}
-        </div>`;
-    }
-    list.innerHTML = html || '<small class="hint">まだ他の記録はありません。</small>';
+  const others = keys.filter(k=>k!==selectedKey);
+  if(others.length===0){ list.innerHTML = '<small class="hint">他の日の記録がたまるとここに表示されます。</small>'; return; }
+  let html = '';
+  for(const k of others){
+    const d = await loadDay(k);
+    const songTags = d.songs.map(s=>`<span class="song-tag">${s.replace(/</g,'&lt;')}</span>`).join('');
+    html += `<div class="day-entry"><div class="date">${fmtDate(k)}</div>
+      <div class="stats">練習: ${d.total}問中${d.correct}問正解　${d.recorded?'・録画あり':''}</div>
+      ${songTags? `<div style="margin-top:6px;">${songTags}</div>`:''}
+      ${d.diary? `<div style="margin-top:6px; font-size:14px;">${d.diary.replace(/</g,'&lt;')}</div>`:''}
+      </div>`;
+  }
+  list.innerHTML = html;
+}
+
+// その日に「練習した」と見なすか（1問でも解いた / 曲を記録 / 日記を書いた）
+async function wasPracticed(dateKey){
+  const d = await loadDay(dateKey);
+  return d.total>0 || (d.songs && d.songs.length>0) || (d.diary && d.diary.trim().length>0);
+}
+
+async function renderCalendar(){
+  const title = document.getElementById('calTitle');
+  const grid = document.getElementById('calGrid');
+  title.textContent = `${calYear}年 ${calMonth+1}月`;
+  const firstDow = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const todayKey = todayStr();
+
+  let html = '';
+  ['日','月','火','水','木','金','土'].forEach(w=>{ html += `<div class="cal-cell dow">${w}</div>`; });
+  for(let i=0;i<firstDow;i++) html += `<div class="cal-cell empty"></div>`;
+
+  const practicedSet = {};
+  for(let d=1; d<=daysInMonth; d++){
+    const k = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    practicedSet[d] = await wasPracticed(k);
   }
 
-  // 連続練習日数（streak）
-  let streak = 0;
-  let d = new Date();
-  while(true){
-    const k = d.toISOString().slice(0,10);
-    const rec = await loadDay(k);
-    if(rec.total>0 || rec.diary){ streak++; d.setDate(d.getDate()-1); }
-    else break;
+  for(let d=1; d<=daysInMonth; d++){
+    const k = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const cls = ['cal-cell','day'];
+    if(k===todayKey) cls.push('today');
+    if(k===selectedKey) cls.push('selected');
+    if(practicedSet[d]) cls.push('practiced');
+    html += `<div class="${cls.join(' ')}" data-key="${k}">
+      <span class="daynum">${d}</span>
+      ${practicedSet[d]? '<span class="hanamaru">✿</span>' : ''}
+    </div>`;
   }
-  document.getElementById('streakNum').textContent = streak;
+  grid.innerHTML = html;
+
+  // 日付タップで選択→表示枠を更新
+  grid.querySelectorAll('.cal-cell.day').forEach(cell=>{
+    cell.addEventListener('click', async ()=>{
+      selectedKey = cell.dataset.key;
+      await renderSelectedDay();
+      await renderHistory();
+      await renderCalendar();
+      document.getElementById('selectedTitle').scrollIntoView({behavior:'smooth', block:'center'});
+    });
+  });
 }
+
+document.getElementById('calPrev').addEventListener('click', ()=>{
+  calMonth--; if(calMonth<0){ calMonth=11; calYear--; } renderCalendar();
+});
+document.getElementById('calNext').addEventListener('click', ()=>{
+  calMonth++; if(calMonth>11){ calMonth=0; calYear++; } renderCalendar();
+});
+
+
 </script>
 </body>
 </html>
