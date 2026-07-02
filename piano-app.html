@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>おんぷノート — ピアノ練習手帳</title>
+<style>
+  :root{
+    --paper:#f6f2e9;
+    --paper-line:#dcd3bf;
+    --ink:#20263b;
+    --ink-soft:#4b526b;
+    --brass:#a9822f;
+    --brass-light:#d7b46a;
+    --wine:#7c2f2f;
+    --good:#3d6b4f;
+    --card:#fffdf8;
+    --shadow: 0 2px 10px rgba(32,38,59,0.08);
+    --radius: 14px;
+    font-size:16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      repeating-linear-gradient(180deg, transparent, transparent 27px, var(--paper-line) 27px, var(--paper-line) 28px) ,
+      var(--paper);
+    color:var(--ink);
+    font-family:"Hiragino Sans","Yu Gothic",sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    padding-bottom:90px;
+  }
+  h1,h2,h3{
+    font-family:"Hiragino Mincho ProN","Yu Mincho",serif;
+    font-weight:600;
+    color:var(--ink);
+    margin:0 0 4px;
+  }
+  header.top{
+    padding:22px 20px 16px;
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+    border-bottom:2px solid var(--ink);
+  }
+  header.top .mark{ font-size:28px; color:var(--brass); }
+  header.top h1{ font-size:22px; letter-spacing:.03em; }
+  header.top .sub{ font-size:12px; color:var(--ink-soft); margin-left:auto; }
+
+  main{ max-width:640px; margin:0 auto; padding:18px 16px 20px; }
+  section{ display:none; animation:fade .25s ease; }
+  section.active{ display:block; }
+  @keyframes fade{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--paper-line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:18px;
+    margin-bottom:16px;
+  }
+  .card h2{ font-size:16px; display:flex; align-items:center; gap:8px; }
+  .card h2 .num{ color:var(--brass); font-size:13px; }
+
+  .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .row.between{ justify-content:space-between; }
+
+  button{
+    font-family:inherit;
+    cursor:pointer;
+    border:none;
+    border-radius:10px;
+    padding:11px 16px;
+    font-size:14px;
+    font-weight:600;
+    transition:transform .08s ease, background .15s ease;
+  }
+  button:active{ transform:scale(0.96); }
+  .btn-primary{ background:var(--ink); color:var(--paper); }
+  .btn-primary:hover{ background:var(--ink-soft); }
+  .btn-brass{ background:var(--brass); color:#fff; }
+  .btn-brass:hover{ background:var(--brass-light); }
+  .btn-ghost{ background:transparent; color:var(--ink); border:1.5px solid var(--ink); }
+  .btn-wine{ background:var(--wine); color:#fff; }
+  .btn-wine:disabled, button:disabled{ opacity:.4; cursor:default; }
+
+  .choice-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:14px; }
+  .choice-grid button{
+    background:var(--paper); border:1.5px solid var(--ink); color:var(--ink);
+    padding:14px 4px; font-size:15px;
+  }
+  .choice-grid button.correct{ background:var(--good); border-color:var(--good); color:#fff; }
+  .choice-grid button.wrong{ background:var(--wine); border-color:var(--wine); color:#fff; }
+
+  .staff-wrap{ display:flex; justify-content:center; padding:10px 0 4px; }
+  .clef-toggle, .range-toggle{ display:flex; gap:6px; }
+  .toggle-btn{
+    background:var(--paper); border:1.5px solid var(--ink-soft); color:var(--ink-soft);
+    padding:7px 12px; font-size:12.5px; border-radius:20px; font-weight:600;
+  }
+  .toggle-btn.active{ background:var(--ink); border-color:var(--ink); color:var(--paper); }
+
+  .score-line{ font-size:13px; color:var(--ink-soft); margin-top:10px; }
+  .score-line b{ color:var(--ink); }
+  .feedback{ min-height:20px; font-size:13.5px; font-weight:600; margin-top:8px; }
+  .feedback.ok{ color:var(--good); }
+  .feedback.ng{ color:var(--wine); }
+
+  /* metronome */
+  .bpm-display{ text-align:center; margin:6px 0 4px; }
+  .bpm-display .num{ font-family:"Hiragino Mincho ProN",serif; font-size:52px; line-height:1; color:var(--ink); }
+  .bpm-display .unit{ font-size:13px; color:var(--ink-soft); }
+  input[type=range]{ width:100%; accent-color:var(--brass); }
+  .pulse-dot{
+    width:20px; height:20px; border-radius:50%; background:var(--paper-line); margin:10px auto;
+    transition:background .05s, transform .05s;
+  }
+  .pulse-dot.on{ background:var(--brass); transform:scale(1.3); }
+  .beat-select{ display:flex; gap:8px; justify-content:center; margin-top:10px; }
+
+  /* recording */
+  video{ width:100%; border-radius:10px; background:#111; display:block; }
+  .rec-note{ font-size:12.5px; color:var(--ink-soft); line-height:1.6; }
+
+  /* diary */
+  .day-entry{ border-top:1px dashed var(--paper-line); padding:12px 0; }
+  .day-entry:first-child{ border-top:none; }
+  .day-entry .date{ font-weight:700; font-size:13.5px; color:var(--brass); }
+  .day-entry textarea{
+    width:100%; margin-top:8px; border:1px solid var(--paper-line); border-radius:8px;
+    padding:8px; font-family:inherit; font-size:14px; resize:vertical; min-height:60px;
+    background:#fffef9;
+  }
+  .day-entry .stats{ font-size:12.5px; color:var(--ink-soft); margin-top:6px; }
+  .streak{ text-align:center; padding:6px 0 2px; }
+  .streak .n{ font-size:34px; font-family:"Hiragino Mincho ProN",serif; color:var(--wine); }
+  .streak .l{ font-size:12px; color:var(--ink-soft); }
+
+  nav.tabs{
+    position:fixed; bottom:0; left:0; right:0;
+    background:var(--ink); display:flex;
+    padding:8px max(8px, env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom));
+    box-shadow:0 -2px 10px rgba(0,0,0,.15);
+  }
+  nav.tabs button{
+    flex:1; background:transparent; color:#b9bdd0; border-radius:10px;
+    font-size:11.5px; padding:8px 2px; display:flex; flex-direction:column; align-items:center; gap:3px;
+  }
+  nav.tabs button .ic{ font-size:19px; }
+  nav.tabs button.active{ color:#fff; background:rgba(255,255,255,0.08); }
+  small.hint{ color:var(--ink-soft); font-size:12px; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <span class="mark">♪</span>
+  <h1>おんぷノート</h1>
+  <span class="sub">ピアノ練習手帳</span>
+</header>
+
+<main>
+
+  <!-- 練習 -->
+  <section id="tab-practice" class="active">
+    <div class="card">
+      <h2><span class="num">01</span> 音符よみトレーニング</h2>
+      <div class="row between">
+        <div class="clef-toggle">
+          <button class="toggle-btn active" data-clef="treble">ト音記号</button>
+          <button class="toggle-btn" data-clef="bass">ヘ音記号</button>
+        </div>
+        <div class="range-toggle">
+          <button class="toggle-btn active" data-range="basic">基本</button>
+          <button class="toggle-btn" data-range="wide">ひろめ</button>
+        </div>
+      </div>
+
+      <div class="staff-wrap"><svg id="staffSvg" width="260" height="140" viewBox="0 0 260 140"></svg></div>
+
+      <div class="choice-grid" id="choiceGrid"></div>
+      <div class="feedback" id="feedback"></div>
+      <div class="score-line">今日: <b id="todayCorrect">0</b>/<b id="todayTotal">0</b> 問正解　経過時間 <b id="todayTime">0:00</b></div>
+    </div>
+  </section>
+
+  <!-- メトロノーム -->
+  <section id="tab-metronome">
+    <div class="card">
+      <h2><span class="num">02</span> メトロノーム</h2>
+      <div class="bpm-display"><span class="num" id="bpmNum">90</span><span class="unit"> BPM</span></div>
+      <input type="range" id="bpmSlider" min="40" max="208" value="90">
+      <div class="pulse-dot" id="pulseDot"></div>
+      <div class="beat-select" id="beatSelect">
+        <button class="toggle-btn active" data-beat="2">2拍子</button>
+        <button class="toggle-btn" data-beat="3">3拍子</button>
+        <button class="toggle-btn active-default" data-beat="4">4拍子</button>
+      </div>
+      <div class="row" style="justify-content:center; margin-top:16px; gap:12px;">
+        <button class="btn-ghost" id="tapTempo">タップでテンポ</button>
+        <button class="btn-primary" id="metronomeToggle" style="min-width:110px;">▶ 開始</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 録画 -->
+  <section id="tab-record">
+    <div class="card">
+      <h2><span class="num">03</span> 練習を録画</h2>
+      <video id="preview" autoplay muted playsinline></video>
+      <div class="row" style="margin-top:10px; gap:10px;">
+        <button class="btn-brass" id="camStart">カメラを開く</button>
+        <button class="btn-wine" id="recStart" disabled>● 録画開始</button>
+        <button class="btn-ghost" id="recStop" disabled>■ 停止</button>
+      </div>
+      <p class="rec-note">録画したデータはこのアプリ内には保存されません。停止後にダウンロードして、写真アプリなどご自身の端末に保存してください。カメラが起動しない場合は、この画面をSafariで直接開いているか（ホーム画面に追加した状態）をご確認ください。</p>
+      <div id="downloadArea"></div>
+    </div>
+  </section>
+
+  <!-- 日記 -->
+  <section id="tab-diary">
+    <div class="card streak">
+      <div class="n" id="streakNum">0</div>
+      <div class="l">日 連続練習中</div>
+    </div>
+    <div class="card">
+      <h2><span class="num">04</span> 今日の日記</h2>
+      <div class="day-entry" id="todayEntry"></div>
+    </div>
+    <div class="card">
+      <h2>これまでの記録</h2>
+      <div id="historyList"><small class="hint">記録はまだありません。</small></div>
+    </div>
+  </section>
+
+</main>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="tab-practice"><span class="ic">♪</span>練習</button>
+  <button class="tab-btn" data-tab="tab-metronome"><span class="ic">◐</span>メトロノーム</button>
+  <button class="tab-btn" data-tab="tab-record"><span class="ic">●</span>録画</button>
+  <button class="tab-btn" data-tab="tab-diary"><span class="ic">✎</span>日記</button>
+</nav>
+
+<script>
+/* ---------- ユーティリティ ---------- */
+function todayStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function fmtDate(s){ const d=new Date(s+"T00:00:00"); return `${d.getMonth()+1}月${d.getDate()}日`; }
+
+async function loadDay(dateKey){
+  try{
+    const r = await window.storage.get('diary:'+dateKey, false);
+    return r ? JSON.parse(r.value) : {date:dateKey, diary:'', correct:0, total:0, seconds:0, recorded:false};
+  }catch(e){
+    return {date:dateKey, diary:'', correct:0, total:0, seconds:0, recorded:false};
+  }
+}
+async function saveDay(dateKey, data){
+  try{ await window.storage.set('diary:'+dateKey, JSON.stringify(data), false); }catch(e){ console.error('save failed', e); }
+}
+async function listDays(){
+  try{
+    const r = await window.storage.list('diary:', false);
+    return r ? r.keys.map(k=>k.replace('diary:','')).sort().reverse() : [];
+  }catch(e){ return []; }
+}
+
+/* ---------- タブ切替 ---------- */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab==='tab-diary') renderDiary();
+  });
+});
+
+/* =========================================================
+   01. 音符よみトレーニング
+   ========================================================= */
+const SOLFEGE = {C:'ド', D:'レ', E:'ミ', F:'ファ', G:'ソ', A:'ラ', B:'シ'};
+// pos: 0=最下線, 偶数=線, 奇数=間, 5線譜=pos0,2,4,6,8
+const TREBLE_BASIC = [0,1,2,3,4,5]; // E4~C5
+const TREBLE_WIDE  = [-2,-1,0,1,2,3,4,5,6,7,8,9]; // C4(下第1線)~G5
+const TREBLE_LETTERS = {'-2':'C4','-1':'D4','0':'E4','1':'F4','2':'G4','3':'A4','4':'B4','5':'C5','6':'D5','7':'E5','8':'F5','9':'G5'};
+
+const BASS_BASIC = [3,4,5,6,7,8]; // C3~A3
+const BASS_WIDE  = [0,1,2,3,4,5,6,7,8,9,10]; // G2~C4
+const BASS_LETTERS = {'0':'G2','1':'A2','2':'B2','3':'C3','4':'D3','5':'E3','6':'F3','7':'G3','8':'A3','9':'B3','10':'C4'};
+
+let clef = 'treble';
+let range = 'basic';
+let currentPos = null;
+let currentLetter = null;
+let quizStartTime = Date.now();
+let todayCorrectCt = 0, todayTotalCt = 0;
+
+function poolFor(){
+  if(clef==='treble') return range==='basic'?TREBLE_BASIC:TREBLE_WIDE;
+  return range==='basic'?BASS_BASIC:BASS_WIDE;
+}
+function letterTableFor(){ return clef==='treble'?TREBLE_LETTERS:BASS_LETTERS; }
+
+function drawStaff(pos){
+  const svg = document.getElementById('staffSvg');
+  const cx = 130, baseY = 100, lineGap = 10;
+  let s = '';
+  // 5線
+  for(let i=0;i<5;i++){
+    const y = baseY - i*lineGap*2;
+    s += `<line x1="30" y1="${y}" x2="230" y2="${y}" stroke="#20263b" stroke-width="1.4"/>`;
+  }
+  // 記号
+  if(clef==='treble'){
+    s += `<text x="38" y="${baseY-4}" font-size="62" font-family=serif fill="#20263b">𝄞</text>`;
+  }else{
+    s += `<text x="38" y="${baseY-22}" font-size="34" font-family=serif fill="#20263b">𝄢</text>`;
+  }
+  // 音符の位置
+  const y = baseY - pos*lineGap;
+  // 加線
+  if(pos<0 || pos>8){
+    for(let p = (pos<0? 0-2 : 10); p>=Math.min(0,pos)-0 && p<=Math.max(8,pos); p+=2){
+      if(pos<0 && p<0 && p>=pos){
+        const ly = baseY - p*lineGap;
+        s += `<line x1="${cx-16}" y1="${ly}" x2="${cx+16}" y2="${ly}" stroke="#20263b" stroke-width="1.4"/>`;
+      }
+      if(pos>8 && p>8 && p<=pos){
+        const ly = baseY - p*lineGap;
+        s += `<line x1="${cx-16}" y1="${ly}" x2="${cx+16}" y2="${ly}" stroke="#20263b" stroke-width="1.4"/>`;
+      }
+    }
+  }
+  s += `<ellipse cx="${cx}" cy="${y}" rx="9" ry="7" fill="#7c2f2f" transform="rotate(-18 ${cx} ${y})"/>`;
+  svg.innerHTML = s;
+}
+
+function newQuestion(){
+  const pool = poolFor();
+  currentPos = pool[Math.floor(Math.random()*pool.length)];
+  currentLetter = letterTableFor()[currentPos].replace(/[0-9]/g,'');
+  drawStaff(currentPos);
+  renderChoices();
+  document.getElementById('feedback').textContent = '';
+  document.getElementById('feedback').className = 'feedback';
+}
+
+function renderChoices(){
+  const grid = document.getElementById('choiceGrid');
+  const letters = ['C','D','E','F','G','A','B'].sort(()=>Math.random()-0.5).slice(0,8-1);
+  if(!letters.includes(currentLetter)) letters[0] = currentLetter;
+  const shuffled = letters.sort(()=>Math.random()-0.5);
+  grid.innerHTML = '';
+  shuffled.forEach(l=>{
+    const b = document.createElement('button');
+    b.textContent = SOLFEGE[l];
+    b.addEventListener('click', ()=>answer(l,b));
+    grid.appendChild(b);
+  });
+}
+
+function answer(letter, btnEl){
+  document.querySelectorAll('#choiceGrid button').forEach(b=>b.disabled=true);
+  todayTotalCt++;
+  const fb = document.getElementById('feedback');
+  if(letter===currentLetter){
+    btnEl.classList.add('correct');
+    fb.textContent = '正解！ ' + SOLFEGE[currentLetter];
+    fb.className = 'feedback ok';
+    todayCorrectCt++;
+  }else{
+    btnEl.classList.add('wrong');
+    fb.textContent = '正解は ' + SOLFEGE[currentLetter] + ' でした';
+    fb.className = 'feedback ng';
+  }
+  updateScoreLine();
+  persistPractice();
+  setTimeout(newQuestion, 800);
+}
+
+function updateScoreLine(){
+  document.getElementById('todayCorrect').textContent = todayCorrectCt;
+  document.getElementById('todayTotal').textContent = todayTotalCt;
+  const sec = Math.floor((Date.now()-quizStartTime)/1000);
+  document.getElementById('todayTime').textContent = Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0');
+}
+setInterval(updateScoreLine, 1000);
+
+async function persistPractice(){
+  const key = todayStr();
+  const day = await loadDay(key);
+  day.correct = todayCorrectCt;
+  day.total = todayTotalCt;
+  day.seconds = Math.floor((Date.now()-quizStartTime)/1000);
+  await saveDay(key, day);
+}
+
+document.querySelectorAll('[data-clef]').forEach(b=>b.addEventListener('click', ()=>{
+  document.querySelectorAll('[data-clef]').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); clef=b.dataset.clef; newQuestion();
+}));
+document.querySelectorAll('[data-range]').forEach(b=>b.addEventListener('click', ()=>{
+  document.querySelectorAll('[data-range]').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); range=b.dataset.range; newQuestion();
+}));
+
+newQuestion();
+
+/* =========================================================
+   02. メトロノーム (Web Audio, ルックアヘッド方式)
+   ========================================================= */
+let audioCtx = null;
+let bpm = 90, beatsPerBar = 4, isPlaying = false;
+let nextNoteTime = 0, current16th = 0, schedulerTimer = null;
+const scheduleAheadTime = 0.12, lookahead = 25;
+
+function ensureAudio(){ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
+
+function scheduleNote(beatIndex, time){
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.frequency.value = beatIndex===0 ? 1400 : 1000;
+  gain.gain.setValueAtTime(0.28, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time+0.05);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(time); osc.stop(time+0.06);
+  const delayMs = (time - audioCtx.currentTime)*1000;
+  setTimeout(()=>{
+    const dot = document.getElementById('pulseDot');
+    dot.classList.add('on'); setTimeout(()=>dot.classList.remove('on'),90);
+  }, Math.max(0,delayMs));
+}
+function scheduler(){
+  while(nextNoteTime < audioCtx.currentTime + scheduleAheadTime){
+    scheduleNote(current16th % beatsPerBar, nextNoteTime);
+    nextNoteTime += 60.0/bpm;
+    current16th++;
+  }
+}
+document.getElementById('bpmSlider').addEventListener('input', e=>{
+  bpm = parseInt(e.target.value);
+  document.getElementById('bpmNum').textContent = bpm;
+});
+document.querySelectorAll('#beatSelect [data-beat]').forEach(b=>b.addEventListener('click', ()=>{
+  document.querySelectorAll('#beatSelect [data-beat]').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); beatsPerBar = parseInt(b.dataset.beat);
+}));
+document.getElementById('metronomeToggle').addEventListener('click', ()=>{
+  ensureAudio();
+  isPlaying = !isPlaying;
+  const btn = document.getElementById('metronomeToggle');
+  if(isPlaying){
+    audioCtx.resume();
+    current16th = 0; nextNoteTime = audioCtx.currentTime + 0.05;
+    schedulerTimer = setInterval(scheduler, lookahead);
+    btn.textContent = '■ 停止';
+  }else{
+    clearInterval(schedulerTimer);
+    btn.textContent = '▶ 開始';
+  }
+});
+let tapTimes = [];
+document.getElementById('tapTempo').addEventListener('click', ()=>{
+  const now = Date.now();
+  tapTimes = tapTimes.filter(t=>now-t<2500);
+  tapTimes.push(now);
+  if(tapTimes.length>=2){
+    const intervals = tapTimes.slice(1).map((t,i)=>t-tapTimes[i]);
+    const avg = intervals.reduce((a,b)=>a+b,0)/intervals.length;
+    bpm = Math.max(40,Math.min(208, Math.round(60000/avg)));
+    document.getElementById('bpmSlider').value = bpm;
+    document.getElementById('bpmNum').textContent = bpm;
+  }
+});
+
+/* =========================================================
+   03. 録画
+   ========================================================= */
+let mediaStream = null, mediaRecorder = null, chunks = [];
+document.getElementById('camStart').addEventListener('click', async ()=>{
+  try{
+    mediaStream = await navigator.mediaDevices.getUserMedia({video:true, audio:true});
+    document.getElementById('preview').srcObject = mediaStream;
+    document.getElementById('recStart').disabled = false;
+  }catch(e){
+    alert('カメラ/マイクにアクセスできませんでした。ブラウザの権限設定をご確認ください。\n('+e.message+')');
+  }
+});
+document.getElementById('recStart').addEventListener('click', ()=>{
+  chunks = [];
+  mediaRecorder = new MediaRecorder(mediaStream);
+  mediaRecorder.ondataavailable = e=>{ if(e.data.size>0) chunks.push(e.data); };
+  mediaRecorder.onstop = async ()=>{
+    const blob = new Blob(chunks, {type:'video/webm'});
+    const url = URL.createObjectURL(blob);
+    const area = document.getElementById('downloadArea');
+    area.innerHTML = `<a class="btn-brass" style="display:inline-block; text-decoration:none; margin-top:10px;" href="${url}" download="practice_${todayStr()}.webm">録画をダウンロード</a>`;
+    const day = await loadDay(todayStr());
+    day.recorded = true;
+    await saveDay(todayStr(), day);
+  };
+  mediaRecorder.start();
+  document.getElementById('recStart').disabled = true;
+  document.getElementById('recStop').disabled = false;
+});
+document.getElementById('recStop').addEventListener('click', ()=>{
+  mediaRecorder.stop();
+  document.getElementById('recStart').disabled = false;
+  document.getElementById('recStop').disabled = true;
+});
+
+/* =========================================================
+   04. 日記 / ログ集約
+   ========================================================= */
+async function renderDiary(){
+  const key = todayStr();
+  const day = await loadDay(key);
+  const todayEl = document.getElementById('todayEntry');
+  todayEl.innerHTML = `
+    <div class="date">${fmtDate(key)}（今日）</div>
+    <div class="stats">練習問題: ${day.total}問中 ${day.correct}問正解　/　${day.recorded? '録画あり' : '録画なし'}</div>
+    <textarea id="diaryText" placeholder="今日の練習の振り返りを書きましょう">${day.diary||''}</textarea>
+    <button class="btn-primary" id="saveDiary" style="margin-top:8px;">保存する</button>
+  `;
+  document.getElementById('saveDiary').addEventListener('click', async ()=>{
+    day.diary = document.getElementById('diaryText').value;
+    await saveDay(key, day);
+    const b = document.getElementById('saveDiary');
+    b.textContent = '保存しました'; setTimeout(()=>b.textContent='保存する',1200);
+  });
+
+  const keys = await listDays();
+  const list = document.getElementById('historyList');
+  if(keys.length<=1){ list.innerHTML = '<small class="hint">練習記録がたまるとここに表示されます。</small>'; }
+  else{
+    let html = '';
+    for(const k of keys){
+      if(k===key) continue;
+      const d = await loadDay(k);
+      html += `<div class="day-entry"><div class="date">${fmtDate(k)}</div>
+        <div class="stats">練習: ${d.total}問中${d.correct}問正解　${d.recorded?'・録画あり':''}</div>
+        ${d.diary? `<div style="margin-top:6px; font-size:14px;">${d.diary.replace(/</g,'&lt;')}</div>`:''}
+        </div>`;
+    }
+    list.innerHTML = html || '<small class="hint">まだ他の記録はありません。</small>';
+  }
+
+  // 連続練習日数（streak）
+  let streak = 0;
+  let d = new Date();
+  while(true){
+    const k = d.toISOString().slice(0,10);
+    const rec = await loadDay(k);
+    if(rec.total>0 || rec.diary){ streak++; d.setDate(d.getDate()-1); }
+    else break;
+  }
+  document.getElementById('streakNum').textContent = streak;
+}
+</script>
+</body>
+</html>
