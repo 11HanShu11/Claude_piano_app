@@ -100,6 +100,13 @@
 
   .staff-wrap{ display:flex; justify-content:center; padding:10px 0 4px; }
   .keyboard-wrap{ margin-top:12px; padding:0 4px; }
+  .kbd-play-wrap{ margin-top:14px; }
+  .octave-nav{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .oct-btn{ padding:7px 12px; font-size:12.5px; }
+  .oct-label{ font-size:13px; font-weight:700; color:var(--ink); }
+  #kbdPlaySvg{ touch-action:manipulation; }
+  #kbdPlaySvg .wkey{ cursor:pointer; }
+  #kbdPlaySvg .bkey{ cursor:pointer; }
 
   /* 練習メニュー */
   .menu-lead{ font-size:13px; color:var(--ink-soft); margin:2px 0 14px; }
@@ -230,6 +237,9 @@
           <button class="menu-btn" data-mode="note-sharp">
             <span class="menu-ic">♯</span><span class="menu-t">音階読み</span><span class="menu-d">シャープあり</span>
           </button>
+          <button class="menu-btn" data-mode="note-keyboard">
+            <span class="menu-ic">🎹</span><span class="menu-t">音階読み</span><span class="menu-d">鍵盤でこたえる</span>
+          </button>
           <button class="menu-btn" data-mode="duration">
             <span class="menu-ic">𝅘𝅥</span><span class="menu-t">音符の種類</span><span class="menu-d">四分音符・全音符など</span>
           </button>
@@ -274,6 +284,16 @@
 
         <div class="choice-grid" id="choiceGrid"></div>
         <div class="feedback" id="feedback"></div>
+
+        <div class="kbd-play-wrap" id="kbdPlayWrap" style="display:none;">
+          <div class="octave-nav">
+            <button class="btn-ghost oct-btn" id="octDown">◀ 低い音</button>
+            <span class="oct-label" id="octLabel"></span>
+            <button class="btn-ghost oct-btn" id="octUp">高い音 ▶</button>
+          </div>
+          <svg id="kbdPlaySvg" viewBox="0 0 340 130" width="100%"></svg>
+        </div>
+
         <div class="keyboard-wrap" id="keyboardWrap"><svg id="kbdSvg" viewBox="0 0 280 90" width="100%"></svg></div>
         <div class="score-line">今日: <b id="todayCorrect">0</b>/<b id="todayTotal">0</b> 問正解　経過時間 <b id="todayTime">0:00</b></div>
       </div>
@@ -347,7 +367,11 @@
 
 <script>
 /* ---------- ユーティリティ ---------- */
-function todayStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
+// ローカルタイム基準で 'YYYY-MM-DD' を返す（toISOStringはUTC基準で日付がずれるため使わない）
+function todayStr(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 function fmtDate(s){ const d=new Date(s+"T00:00:00"); return `${d.getMonth()+1}月${d.getDate()}日`; }
 
 // ブラウザのlocalStorageに保存します（この端末・このブラウザ内だけに残ります）
@@ -394,10 +418,11 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
 /* =========================================================
    01. 練習メニュー ⇄ クイズ の切替
    ========================================================= */
-let currentMode = null; // note-white | note-sharp | duration | key | ear-note | ear-chord
+let currentMode = null; // note-white | note-sharp | note-keyboard | duration | key | ear-note | ear-chord
 const QUIZ_TITLES = {
   'note-white':'音階読み（白鍵）',
   'note-sharp':'音階読み（♯あり）',
+  'note-keyboard':'音階読み（鍵盤で）',
   'duration':'音符の種類',
   'key':'調・調号',
   'ear-note':'耳で音当て',
@@ -414,13 +439,19 @@ function startQuiz(mode){
   document.getElementById('practiceMenu').style.display = 'none';
   document.getElementById('practiceQuiz').style.display = '';
   document.getElementById('quizTitle').textContent = QUIZ_TITLES[mode];
-  const isNote = (mode==='note-white' || mode==='note-sharp');
+  const isNote = (mode==='note-white' || mode==='note-sharp'); // ドレミ選択の音符読み
+  const isKbd  = (mode==='note-keyboard');                     // 鍵盤でこたえる
   const isEar  = (mode==='ear-note' || mode==='ear-chord');
-  // ト音/ヘ音・音域トグルと鍵盤は「音階読み」系のみ
+  const showStaff = !isEar; // 五線譜は耳トレ以外で表示
+  // ト音/ヘ音・音域トグル：ドレミ音符読みのみ（鍵盤モードは独自の音域切替を使う）
   document.getElementById('clefRangeRow').style.display = isNote ? '' : 'none';
+  // 表示専用の鍵盤（ドレミ選択時の答え合わせ用）はドレミ音符読みのみ
   document.getElementById('keyboardWrap').style.display = isNote ? '' : 'none';
-  // 五線譜は耳トレ以外で表示、耳トレでは再生ボタンを表示
-  document.getElementById('staffWrap').style.display = isEar ? 'none' : '';
+  // 選択肢グリッドは鍵盤モードでは使わない
+  document.getElementById('choiceGrid').style.display = isKbd ? 'none' : '';
+  // インタラクティブ鍵盤は鍵盤モードのみ
+  document.getElementById('kbdPlayWrap').style.display = isKbd ? '' : 'none';
+  document.getElementById('staffWrap').style.display = showStaff ? '' : 'none';
   document.getElementById('earWrap').style.display = isEar ? '' : 'none';
   newQuestion();
 }
@@ -429,6 +460,8 @@ document.querySelectorAll('.menu-btn').forEach(btn=>{
 });
 document.getElementById('backToMenu').addEventListener('click', showMenu);
 document.getElementById('earPlay').addEventListener('click', replayEar);
+document.getElementById('octDown').addEventListener('click', ()=>shiftKbdOctave(-1));
+document.getElementById('octUp').addEventListener('click', ()=>shiftKbdOctave(1));
 
 /* =========================================================
    音符よみトレーニングのデータ
@@ -448,14 +481,15 @@ const NOTE_FREQ = {
   'G2':98.00,'A2':110.00,'B2':123.47,
   'C3':130.81,'D3':146.83,'E3':164.81,'F3':174.61,'G3':196.00,'A3':220.00,'B3':246.94,
   'C4':261.63,'D4':293.66,'E4':329.63,'F4':349.23,'G4':392.00,'A4':440.00,'B4':493.88,
-  'C5':523.25,'D5':587.33,'E5':659.25,'F5':698.46,'G5':783.99
+  'C5':523.25,'D5':587.33,'E5':659.25,'F5':698.46,'G5':783.99,'A5':880.00,'B5':987.77,
+  'C6':1046.50
 };
 
 // ♯音の周波数（黒鍵）
 const SHARP_FREQ = {
   'C#3':138.59,'D#3':155.56,'F#3':185.00,'G#3':207.65,'A#3':233.08,
   'C#4':277.18,'D#4':311.13,'F#4':369.99,'G#4':415.30,'A#4':466.16,
-  'C#5':554.37
+  'C#5':554.37,'D#5':622.25,'F#5':739.99,'G#5':830.61,'A#5':932.33
 };
 const SHARP_SOLFEGE = {'C#':'ド♯','D#':'レ♯','F#':'ファ♯','G#':'ソ♯','A#':'ラ♯'};
 
@@ -492,6 +526,7 @@ let modeSession  = {}; // 例 {'note-white':{correct:1,total:2}}
 const MODE_LABELS = {
   'note-white':'音階読み(白鍵)',
   'note-sharp':'音階読み(♯)',
+  'note-keyboard':'音階読み(鍵盤)',
   'duration':'音符の種類',
   'key':'調・調号',
   'ear-note':'耳で音当て',
@@ -509,24 +544,29 @@ function modeBreakdownHtml(day){
   return `<div class="mode-breakdown">${rows}</div>`;
 }
 
-// 起動後の初回に、今日すでに保存されている集計を baseline として読み込む
-let baselineLoaded = false;
+// 起動後、その日の既存集計を baseline として読み込む。日付が変わったら読み直す。
+let baselineDay = null; // baseline を読み込んだ日付
 async function ensureBaseline(){
-  if(baselineLoaded) return;
-  const day = await loadDay(todayStr());
+  const today = todayStr();
+  if(baselineDay === today) return; // 同じ日ならそのまま
+  // 日付が変わった（または初回）→ その日の記録を baseline にし、当日分のセッションを初期化
+  const day = await loadDay(today);
   modeBaseline = JSON.parse(JSON.stringify(day.byMode||{}));
-  baselineLoaded = true;
+  modeSession = {};
+  quizStartTime = Date.now();
+  baselineDay = today;
 }
 
 // 1問回答するたびに呼ぶ：カテゴリ別に加算し、合計を再計算して保存
 async function recordAnswer(mode, isCorrect){
   await ensureBaseline();
+  const today = todayStr(); // ensureBaseline後の確定した今日
   if(!modeSession[mode]) modeSession[mode] = {correct:0, total:0};
   modeSession[mode].total++;
   if(isCorrect) modeSession[mode].correct++;
 
-  // baseline + session を byMode に反映
-  const day = await loadDay(todayStr());
+  // baseline + session を byMode に反映（この日の記録のみを対象）
+  const day = await loadDay(today);
   const merged = {};
   const allModes = new Set([...Object.keys(modeBaseline), ...Object.keys(modeSession)]);
   allModes.forEach(m=>{
@@ -538,7 +578,7 @@ async function recordAnswer(mode, isCorrect){
   day.correct = Object.values(merged).reduce((a,v)=>a+v.correct,0);
   day.total   = Object.values(merged).reduce((a,v)=>a+v.total,0);
   day.seconds = Math.floor((Date.now()-quizStartTime)/1000);
-  await saveDay(todayStr(), day);
+  await saveDay(today, day);
 
   // 画面表示用の合計を更新
   todayCorrectCt = day.correct;
@@ -736,6 +776,7 @@ function newQuestion(){
   const fb = document.getElementById('feedback');
   fb.textContent = ''; fb.className = 'feedback';
   if(currentMode==='note-white' || currentMode==='note-sharp') buildNoteQuestion();
+  else if(currentMode==='note-keyboard') buildKeyboardQuestion();
   else if(currentMode==='duration') buildDurationQuestion();
   else if(currentMode==='key') buildKeyQuestion();
   else if(currentMode==='ear-note') buildEarNoteQuestion();
@@ -802,6 +843,134 @@ function answerNote(label, btnEl, correctLabel){
   }
   recordAnswer(currentMode, isCorrect);
   setTimeout(newQuestion, 1100);
+}
+
+/* =========================================================
+   音階読み（鍵盤でこたえる）
+   ========================================================= */
+const WHITE_ORDER = ['C','D','E','F','G','A','B'];
+const LETTER_IDX = {C:0,D:1,E:2,F:3,G:4,A:5,B:6};
+const BLACK_AFTER = {C:'C#',D:'D#',F:'F#',G:'G#',A:'A#'}; // E,Bの後に黒鍵なし
+
+// 五線譜ポジションを音名から求める（クレフ別）。ト音:E4=0 / ヘ音:G2=0
+function staffPosFor(letter, oct, useClef){
+  if(useClef==='bass') return LETTER_IDX[letter] + (oct-2)*7 - 4;
+  return LETTER_IDX[letter] + (oct-4)*7 - 2;
+}
+// 音の高さに応じて見やすいクレフを選ぶ（C4未満はヘ音、以上はト音）
+function clefForNote(letter, oct){
+  const midi = oct*7 + LETTER_IDX[letter]; // 単純な高さ指標
+  return midi < (4*7 + 0) ? 'bass' : 'treble'; // C4未満=bass
+}
+
+// 表示できる白鍵の全体範囲：C3〜C5（各クレフで加線2本以内に収まる）
+const KBD_WHITES = []; // {letter, oct}
+for(let oct=3; oct<=4; oct++){ WHITE_ORDER.forEach(l=>KBD_WHITES.push({letter:l, oct})); }
+KBD_WHITES.push({letter:'C', oct:5}); // 最後にC5
+const KBD_VISIBLE = 9;                  // 一度に表示する白鍵数
+let kbdStart = KBD_WHITES.findIndex(w=>w.letter==='C'&&w.oct===4); // 初期表示はC4付近
+if(kbdStart<0 || kbdStart>KBD_WHITES.length-KBD_VISIBLE) kbdStart = Math.max(0, KBD_WHITES.length-KBD_VISIBLE);
+
+let kbdAnswerNote = null; // 正解の音（'C#4'など）
+let kbdLocked = false;    // 回答直後の入力ロック
+
+function currentKbdWindow(){
+  const end = Math.min(kbdStart+KBD_VISIBLE, KBD_WHITES.length);
+  return KBD_WHITES.slice(kbdStart, end);
+}
+function shiftKbdOctave(dir){
+  const next = kbdStart + dir*7;
+  kbdStart = Math.max(0, Math.min(next, KBD_WHITES.length-KBD_VISIBLE));
+  buildKeyboardQuestion();
+}
+
+// 現在表示中の範囲に含まれる全ての音（白鍵＋黒鍵）を列挙
+function notesInWindow(){
+  const win = currentKbdWindow();
+  const notes = [];
+  win.forEach((w,i)=>{
+    notes.push(w.letter+w.oct); // 白鍵
+    if(i<win.length-1 && BLACK_AFTER[w.letter]){ // 端の黒鍵は除く（押しにくいため）
+      notes.push(BLACK_AFTER[w.letter]+w.oct);
+    }
+  });
+  return notes;
+}
+
+function buildKeyboardQuestion(){
+  kbdLocked = false;
+  const pool = notesInWindow();
+  kbdAnswerNote = pool[Math.floor(Math.random()*pool.length)];
+  const letter = kbdAnswerNote.replace(/[#0-9]/g,'');
+  const oct = parseInt(kbdAnswerNote.replace(/[^0-9]/g,''));
+  const acc = kbdAnswerNote.includes('#') ? '#' : '';
+  clef = clefForNote(letter, oct); // 音に応じてクレフを選ぶ
+  drawStaff(staffPosFor(letter, oct, clef), acc);
+  const win = currentKbdWindow();
+  document.getElementById('octLabel').textContent =
+    `${win[0].letter}${win[0].oct} 〜 ${win[win.length-1].letter}${win[win.length-1].oct}`;
+  drawPlayKeyboard(null);
+  const fb = document.getElementById('feedback');
+  fb.textContent = 'この音符の鍵盤をタップ'; fb.className = 'feedback';
+}
+
+// インタラクティブ鍵盤を描画。highlight は正誤表示用（{note, ok}）
+function drawPlayKeyboard(highlight){
+  const svg = document.getElementById('kbdPlaySvg');
+  const win = currentKbdWindow();
+  const whiteW = 340/KBD_VISIBLE, whiteH = 120, blackW = whiteW*0.6, blackH = 74;
+  let s = '';
+  // 白鍵
+  win.forEach((w,i)=>{
+    const x = i*whiteW;
+    const note = w.letter+w.oct;
+    let fill = '#fffef9';
+    if(highlight && highlight.note===note) fill = highlight.ok ? 'var(--good)' : 'var(--wine)';
+    s += `<rect class="wkey" data-note="${note}" x="${x}" y="0" width="${whiteW-1}" height="${whiteH}" rx="3"
+           fill="${fill}" stroke="#20263b" stroke-width="1"/>`;
+    if(w.letter==='C'){
+      s += `<text x="${x+whiteW/2}" y="${whiteH-8}" font-size="11" text-anchor="middle" fill="#4b526b" pointer-events="none">ド</text>`;
+    }
+  });
+  // 黒鍵（白鍵の上に重ねる。最後の白鍵の右には描かない）
+  win.forEach((w,i)=>{
+    if(i===win.length-1) return; // 端の黒鍵は省く
+    if(BLACK_AFTER[w.letter]){
+      const x = i*whiteW + whiteW - blackW/2;
+      const note = BLACK_AFTER[w.letter]+w.oct;
+      let fill = '#20263b';
+      if(highlight && highlight.note===note) fill = highlight.ok ? 'var(--good)' : 'var(--wine)';
+      s += `<rect class="bkey" data-note="${note}" x="${x}" y="0" width="${blackW}" height="${blackH}" rx="2"
+             fill="${fill}" stroke="#20263b" stroke-width="1"/>`;
+    }
+  });
+  svg.innerHTML = s;
+  // タップ割り当て（黒鍵優先のため後から白鍵→黒鍵の順でバインド）
+  svg.querySelectorAll('[data-note]').forEach(el=>{
+    el.addEventListener('click', ()=>onKbdKeyTap(el.dataset.note));
+  });
+}
+
+function onKbdKeyTap(note){
+  if(kbdLocked) return;
+  kbdLocked = true;
+  const isCorrect = (note===kbdAnswerNote);
+  // 押した鍵を色付け＆音を鳴らす
+  drawPlayKeyboard({note, ok:isCorrect});
+  playNoteByName(kbdAnswerNote); // 正しい音を鳴らして耳でも確認
+  const fb = document.getElementById('feedback');
+  const disp = kbdAnswerNote.includes('#')
+    ? SHARP_SOLFEGE[kbdAnswerNote.replace(/[0-9]/g,'')]
+    : SOLFEGE[kbdAnswerNote.replace(/[0-9]/g,'')];
+  if(isCorrect){
+    fb.textContent = '正解！ ' + disp; fb.className = 'feedback ok';
+  }else{
+    // 正解の鍵も光らせる
+    setTimeout(()=>drawPlayKeyboard({note:kbdAnswerNote, ok:true}), 450);
+    fb.textContent = '正解は ' + disp + ' でした'; fb.className = 'feedback ng';
+  }
+  recordAnswer('note-keyboard', isCorrect);
+  setTimeout(newQuestion, 1400);
 }
 
 /* ===== 音符の種類 ===== */
@@ -1059,11 +1228,18 @@ document.getElementById('recStop').addEventListener('click', ()=>{
    ========================================================= */
 let calYear, calMonth;         // 表示中の年・月(0-11)
 let selectedKey = null;        // 現在選択中の日付 'YYYY-MM-DD'
+let diaryLastSeenDay = null;   // 前回この画面を表示したときの日付
 
 async function renderDiary(){
+  const today = todayStr();
   const now = new Date();
-  if(calYear===undefined){ calYear = now.getFullYear(); calMonth = now.getMonth(); }
-  if(selectedKey===null) selectedKey = todayStr(); // 初期は今日を選択
+  // 初回、または日付が変わっていたら「今日」に合わせ直す
+  if(selectedKey===null || diaryLastSeenDay!==today){
+    selectedKey = today;
+    calYear = now.getFullYear();
+    calMonth = now.getMonth();
+  }
+  diaryLastSeenDay = today;
   await renderSelectedDay();
   await renderHistory();
   await renderCalendar();
