@@ -134,6 +134,8 @@
 
   .score-line{ font-size:13px; color:var(--ink-soft); margin-top:10px; }
   .score-line b{ color:var(--ink); }
+  .practice-hint{ font-size:12px; color:var(--ink-soft); margin-top:6px; }
+  .practice-hint b{ color:var(--wine); }
   .feedback{ min-height:20px; font-size:13.5px; font-weight:600; margin-top:8px; }
   .feedback.ok{ color:var(--good); }
   .feedback.ng{ color:var(--wine); }
@@ -179,6 +181,11 @@
   .streak{ text-align:center; padding:6px 0 2px; }
   .streak .n{ font-size:34px; font-family:"Hiragino Mincho ProN",serif; color:var(--wine); }
   .streak .l{ font-size:12px; color:var(--ink-soft); }
+  .goal-bar{ height:6px; background:var(--paper-line); border-radius:3px; margin-top:5px; overflow:hidden; max-width:220px; }
+  .goal-bar > i{ display:block; height:100%; background:var(--good); width:0; transition:width .3s ease; }
+  .goal-adjust{ font-size:12.5px; color:var(--ink-soft); display:flex; align-items:center; gap:6px; }
+  .goal-adjust b{ color:var(--ink); }
+  .goal-btn{ background:var(--paper); border:1.5px solid var(--ink-soft); color:var(--ink); width:26px; height:26px; padding:0; font-size:16px; border-radius:6px; line-height:1; }
 
   /* calendar */
   .cal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
@@ -210,6 +217,36 @@
   nav.tabs button .ic{ font-size:19px; }
   nav.tabs button.active{ color:#fff; background:rgba(255,255,255,0.08); }
   small.hint{ color:var(--ink-soft); font-size:12px; }
+
+  /* 固定ドレミパッド（位置固定・全幅） */
+  .solfege-pad{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin:14px -4px 0; }
+  .solfege-pad button{
+    background:var(--paper); border:1.5px solid var(--ink); color:var(--ink);
+    padding:16px 0; font-size:16px; font-weight:700; border-radius:10px;
+  }
+  .solfege-pad button.correct{ background:var(--good); border-color:var(--good); color:#fff; }
+  .solfege-pad button.wrong{ background:var(--wine); border-color:var(--wine); color:#fff; }
+  .solfege-pad button.reveal{ background:var(--brass-light); border-color:var(--brass); color:var(--ink); }
+
+  /* スピードテスト */
+  .menu-btn.test-btn{ grid-column:1 / -1; border-color:var(--wine); }
+  .menu-btn.test-btn .menu-ic{ color:var(--wine); }
+  .test-bar{ height:6px; background:var(--paper-line); border-radius:3px; margin:6px 0 2px; overflow:hidden; }
+  .test-bar > i{ display:block; height:100%; background:var(--brass); width:0; transition:width .2s ease; }
+  .test-progress{ font-size:12.5px; color:var(--ink-soft); text-align:center; }
+  .test-progress b{ color:var(--ink); }
+  .test-result-big{ text-align:center; padding:6px 0 2px; }
+  .test-result-big .n{ font-family:"Hiragino Mincho ProN",serif; font-size:46px; color:var(--wine); line-height:1; }
+  .test-result-big .u{ font-size:13px; color:var(--ink-soft); }
+  .trend-delta{ text-align:center; font-size:13px; font-weight:700; margin:6px 0 2px; }
+  .trend-delta.up{ color:var(--good); }
+  .trend-delta.down{ color:var(--wine); }
+
+  /* 読譜スピードのトレンド */
+  .trend-chart{ width:100%; height:auto; display:block; }
+  .trend-list{ margin-top:10px; }
+  .trend-row{ display:flex; justify-content:space-between; font-size:12.5px; color:var(--ink-soft); padding:4px 0; border-top:1px dashed var(--paper-line); }
+  .trend-row span:last-child{ color:var(--ink); font-weight:600; }
 </style>
 </head>
 <body>
@@ -240,6 +277,9 @@
           <button class="menu-btn" data-mode="note-keyboard">
             <span class="menu-ic">🎹</span><span class="menu-t">音階読み</span><span class="menu-d">鍵盤でこたえる</span>
           </button>
+          <button class="menu-btn" data-mode="note-seq">
+            <span class="menu-ic">♫</span><span class="menu-t">音列読み</span><span class="menu-d">並んだ音符を順に読む</span>
+          </button>
           <button class="menu-btn" data-mode="duration">
             <span class="menu-ic">🎵</span><span class="menu-t">音符の種類</span><span class="menu-d">四分音符・全音符など</span>
           </button>
@@ -251,6 +291,9 @@
           </button>
           <button class="menu-btn" data-mode="ear-chord">
             <span class="menu-ic">🎵</span><span class="menu-t">和音の響き</span><span class="menu-d">明るい・暗いを聴き分け</span>
+          </button>
+          <button class="menu-btn test-btn" id="startTestBtn">
+            <span class="menu-ic">⏱</span><span class="menu-t">スピードテスト</span><span class="menu-d">読譜の速さを記録してグラフに残す</span>
           </button>
         </div>
       </div>
@@ -264,12 +307,18 @@
           <h2 id="quizTitle" style="margin:0; font-size:16px;">練習</h2>
         </div>
 
+        <div id="testProgressWrap" style="display:none;">
+          <div class="test-bar"><i id="testBarFill"></i></div>
+          <div class="test-progress"><b id="testDone">0</b> / <b id="testTotal">0</b> 問</div>
+        </div>
+
         <div class="row between" id="clefRangeRow">
           <div class="clef-toggle">
             <button class="toggle-btn active" data-clef="treble">ト音記号</button>
             <button class="toggle-btn" data-clef="bass">ヘ音記号</button>
           </div>
           <div class="range-toggle">
+            <button class="toggle-btn" data-range="adaptive" id="rangeAdaptiveBtn">適応</button>
             <button class="toggle-btn active" data-range="basic">基本</button>
             <button class="toggle-btn" data-range="wide">ひろめ</button>
           </div>
@@ -283,6 +332,7 @@
         </div>
 
         <div class="choice-grid" id="choiceGrid"></div>
+        <div class="solfege-pad" id="solfegePad" style="display:none;"></div>
         <div class="feedback" id="feedback"></div>
 
         <div class="kbd-play-wrap" id="kbdPlayWrap" style="display:none;">
@@ -296,6 +346,23 @@
 
         <div class="keyboard-wrap" id="keyboardWrap"><svg id="kbdSvg" viewBox="0 0 280 90" width="100%"></svg></div>
         <div class="score-line">今日: <b id="todayCorrect">0</b>/<b id="todayTotal">0</b> 問正解　経過時間 <b id="todayTime">0:00</b></div>
+        <div class="score-line" id="goalLine" style="display:none;"></div>
+        <div class="practice-hint" id="practiceHint" style="display:none;"></div>
+      </div>
+    </div>
+
+    <!-- スピードテストの結果 -->
+    <div id="testResultCard" style="display:none;">
+      <div class="card">
+        <h2><span class="num">★</span> スピードテストの結果</h2>
+        <div class="test-result-big"><span class="n" id="trAvg">–</span><span class="u"> 秒／問（平均）</span></div>
+        <div class="trend-delta" id="trDelta"></div>
+        <div class="stats" style="text-align:center; font-size:12.5px; color:var(--ink-soft);">正答率 <b id="trAcc" style="color:var(--ink);">–</b>　（<span id="trCount"></span>）</div>
+        <div class="row" style="justify-content:center; margin-top:16px; gap:10px;">
+          <button class="btn-ghost" id="trToMenu">メニューへ</button>
+          <button class="btn-primary" id="trAgain">もう一度</button>
+        </div>
+        <p class="menu-lead" style="text-align:center; margin-top:12px;">推移は「日記」タブの<b>読譜スピードの記録</b>で確認できます。</p>
       </div>
     </div>
 
@@ -337,6 +404,19 @@
 
   <!-- 日記 -->
   <section id="tab-diary">
+    <div class="card" id="streakCard">
+      <div class="streak">
+        <span class="n" id="streakNum">0</span><span class="l"> 日連続</span>
+      </div>
+      <div class="row between" style="margin-top:8px;">
+        <span class="stats" id="streakGoalStat"></span>
+        <span class="goal-adjust">
+          目標 <button class="goal-btn" id="goalMinus">−</button>
+          <b id="goalVal">20</b>問/日
+          <button class="goal-btn" id="goalPlus">＋</button>
+        </span>
+      </div>
+    </div>
     <div class="card">
       <div class="cal-head">
         <button class="cal-nav" id="calPrev">‹</button>
@@ -345,6 +425,10 @@
       </div>
       <div class="cal-grid" id="calGrid"></div>
       <div class="cal-legend"><span class="hanamaru-mini">✿</span> 練習した日　（日付をタップすると下に表示されます）</div>
+    </div>
+    <div class="card">
+      <h2>読譜スピードの記録</h2>
+      <div id="speedTrend"></div>
     </div>
     <div class="card">
       <h2 id="selectedTitle"><span class="num">04</span> 選択中の日</h2>
@@ -423,6 +507,7 @@ const QUIZ_TITLES = {
   'note-white':'音階読み（白鍵）',
   'note-sharp':'音階読み（♯あり）',
   'note-keyboard':'音階読み（鍵盤で）',
+  'note-seq':'音列読み',
   'duration':'音符の種類',
   'key':'調・調号',
   'ear-note':'耳で音当て',
@@ -432,6 +517,8 @@ const QUIZ_TITLES = {
 function showMenu(){
   document.getElementById('practiceMenu').style.display = '';
   document.getElementById('practiceQuiz').style.display = 'none';
+  document.getElementById('testResultCard').style.display = 'none';
+  testActive = false;
   currentMode = null;
 }
 function startQuiz(mode){
@@ -439,34 +526,68 @@ function startQuiz(mode){
   document.getElementById('practiceMenu').style.display = 'none';
   document.getElementById('practiceQuiz').style.display = '';
   document.getElementById('quizTitle').textContent = QUIZ_TITLES[mode];
+  // テスト用UIを通常練習向けにリセット
+  testActive = false;
+  document.getElementById('testProgressWrap').style.display = 'none';
+  document.getElementById('testResultCard').style.display = 'none';
+  document.querySelector('.score-line').style.display = '';
   const isNote = (mode==='note-white' || mode==='note-sharp'); // ドレミ選択の音符読み
+  const isWhitePad = (mode==='note-white');                    // 白鍵は固定ドレミパッドで回答
   const isKbd  = (mode==='note-keyboard');                     // 鍵盤でこたえる
+  const isSeq  = (mode==='note-seq');                          // 音列読み（固定パッドで順に回答）
   const isEar  = (mode==='ear-note' || mode==='ear-chord');
   const showStaff = !isEar; // 五線譜は耳トレ以外で表示
   // ト音/ヘ音・音域トグル：ドレミ音符読みのみ（鍵盤モードは独自の音域切替を使う）
   document.getElementById('clefRangeRow').style.display = isNote ? '' : 'none';
   // 表示専用の鍵盤（ドレミ選択時の答え合わせ用）はドレミ音符読みのみ
   document.getElementById('keyboardWrap').style.display = isNote ? '' : 'none';
-  // 選択肢グリッドは鍵盤モードでは使わない
-  document.getElementById('choiceGrid').style.display = isKbd ? 'none' : '';
+  // 選択肢グリッドは鍵盤モード・白鍵パッド・音列読みでは使わない
+  document.getElementById('choiceGrid').style.display = (isKbd || isWhitePad || isSeq) ? 'none' : '';
+  // 固定ドレミパッドは白鍵の音階読み・音列読み
+  document.getElementById('solfegePad').style.display = (isWhitePad || isSeq) ? '' : 'none';
   // インタラクティブ鍵盤は鍵盤モードのみ
   document.getElementById('kbdPlayWrap').style.display = isKbd ? '' : 'none';
   document.getElementById('staffWrap').style.display = showStaff ? '' : 'none';
   document.getElementById('earWrap').style.display = isEar ? '' : 'none';
+  // 適応レンジは白鍵の音階読みのみ。白鍵は既定で適応モードにする
+  const adaptiveBtn = document.getElementById('rangeAdaptiveBtn');
+  if(isWhitePad){
+    adaptiveBtn.style.display = '';
+    range = 'adaptive';
+  }else{
+    adaptiveBtn.style.display = 'none';
+    if(range==='adaptive') range = 'basic'; // ♯あり等では適応を使わない
+  }
+  document.querySelectorAll('[data-range]').forEach(x=>x.classList.toggle('active', x.dataset.range===range));
+  document.getElementById('practiceHint').style.display = 'none';
+  updateGoalLine(); // デイリー目標の進捗を表示
   newQuestion();
 }
-document.querySelectorAll('.menu-btn').forEach(btn=>{
+document.querySelectorAll('.menu-btn[data-mode]').forEach(btn=>{
   btn.addEventListener('click', ()=>startQuiz(btn.dataset.mode));
 });
 document.getElementById('backToMenu').addEventListener('click', showMenu);
 document.getElementById('earPlay').addEventListener('click', replayEar);
 document.getElementById('octDown').addEventListener('click', ()=>shiftKbdOctave(-1));
 document.getElementById('octUp').addEventListener('click', ()=>shiftKbdOctave(1));
+document.getElementById('startTestBtn').addEventListener('click', startTest);
+// デイリー目標の増減（5問刻み・5〜100）
+function adjustGoal(delta){
+  settings.dailyGoal = Math.max(5, Math.min(100, settings.dailyGoal + delta));
+  saveSettings();
+  renderStreak();
+  updateGoalLine();
+}
+document.getElementById('goalMinus').addEventListener('click', ()=>adjustGoal(-5));
+document.getElementById('goalPlus').addEventListener('click', ()=>adjustGoal(5));
+document.getElementById('trAgain').addEventListener('click', startTest);
+document.getElementById('trToMenu').addEventListener('click', showMenu);
 
 /* =========================================================
    音符よみトレーニングのデータ
    ========================================================= */
 const SOLFEGE = {C:'ド', D:'レ', E:'ミ', F:'ファ', G:'ソ', A:'ラ', B:'シ'};
+const SOLFEGE_ORDER = ['C','D','E','F','G','A','B']; // 固定パッドの並び順（常に同じ）
 // pos: 0=最下線, 偶数=線, 奇数=間, 5線譜=pos0,2,4,6,8
 const TREBLE_BASIC = [0,1,2,3,4,5]; // E4~C5
 const TREBLE_WIDE  = [-2,-1,0,1,2,3,4,5,6,7,8,9]; // C4(下第1線)~G5
@@ -518,6 +639,7 @@ let currentPos = null;
 let currentLetter = null;   // ドレミ判定用（C〜B）
 let currentFullNote = null; // 音を鳴らす用（C4 など）
 let quizStartTime = Date.now();
+let questionShownTime = 0; // 1問が表示された時刻（反応時間の計測用）
 let todayCorrectCt = 0, todayTotalCt = 0; // 画面表示用（今日の合計）
 // カテゴリ別集計：この端末で今日すでに保存済みの値(baseline)と、今回の起動以降の増分(session)を分けて持つ
 let modeBaseline = {}; // 例 {'note-white':{correct:3,total:5}}
@@ -527,6 +649,7 @@ const MODE_LABELS = {
   'note-white':'音階読み(白鍵)',
   'note-sharp':'音階読み(♯)',
   'note-keyboard':'音階読み(鍵盤)',
+  'note-seq':'音列読み',
   'duration':'音符の種類',
   'key':'調・調号',
   'ear-note':'耳で音当て',
@@ -584,6 +707,7 @@ async function recordAnswer(mode, isCorrect){
   todayCorrectCt = day.correct;
   todayTotalCt = day.total;
   updateScoreLine();
+  updateGoalLine();
 }
 
 // クイズの音を鳴らす（ピアノ風のやわらかい音）
@@ -777,18 +901,125 @@ function newQuestion(){
   fb.textContent = ''; fb.className = 'feedback';
   if(currentMode==='note-white' || currentMode==='note-sharp') buildNoteQuestion();
   else if(currentMode==='note-keyboard') buildKeyboardQuestion();
+  else if(currentMode==='note-seq') buildSeqQuestion();
   else if(currentMode==='duration') buildDurationQuestion();
   else if(currentMode==='key') buildKeyQuestion();
   else if(currentMode==='ear-note') buildEarNoteQuestion();
   else if(currentMode==='ear-chord') buildEarChordQuestion();
 }
 
+/* =========================================================
+   Phase2: 音別の弱点記録 & 適応出題（白鍵の音階読み）
+   ・onpu:noteStats に音名ごとの {n:試行, wrong:誤答, ms:直近の正答反応時間} を保存
+   ・弱点（間違えやすい/遅い/未習）の音を重み付けで多めに出題
+   ・適応モードでは入口をドレミの3音に絞り、習熟したら1音ずつ開放する
+   ========================================================= */
+const NOTESTATS_KEY = 'onpu:noteStats';
+const ADAPTIVE_ORDER = ['C','D','E','F','G','A','B']; // ドレミ順に開放
+// 適応モードで使う中央オクターブ（読みやすい1音域・音名→五線譜pos）
+const ADAPTIVE_POS = {
+  treble: {C:5, D:6, E:0, F:1, G:2, A:3, B:4}, // E4〜D5
+  bass:   {C:3, D:4, E:5, F:6, G:7, A:8, B:9}  // C3〜B3
+};
+
+function loadNoteStats(){
+  try{
+    const r = localStorage.getItem(NOTESTATS_KEY);
+    const o = r ? JSON.parse(r) : null;
+    if(o && o.letters){ if(typeof o.level!=='number') o.level=3; return o; }
+  }catch(e){}
+  return {level:3, letters:{}}; // 初期は最初の3音（ドレミ）を開放
+}
+function saveNoteStats(){ try{ localStorage.setItem(NOTESTATS_KEY, JSON.stringify(noteStats)); }catch(e){ console.error('noteStats save failed', e); } }
+let noteStats = loadNoteStats();
+
+function statFor(letter){
+  if(!noteStats.letters[letter]) noteStats.letters[letter] = {n:0, wrong:0, ms:[]};
+  return noteStats.letters[letter];
+}
+function avgMsOf(s){ return (s && s.ms.length) ? s.ms.reduce((a,b)=>a+b,0)/s.ms.length : null; }
+
+// 1問回答を音名別に記録（白鍵の音階読みのみ）。正答時のみ反応時間を残す
+function recordNoteStat(letter, isCorrect, rtMs){
+  const s = statFor(letter);
+  s.n++;
+  if(!isCorrect) s.wrong++;
+  else if(rtMs!=null){ s.ms.push(rtMs); if(s.ms.length>10) s.ms.shift(); }
+  maybeUnlock();
+  saveNoteStats();
+}
+
+// 弱点ほど大きい重み：未習+2.5 / 誤答率×3 / 反応の遅さ最大+2
+function weightForLetter(letter){
+  const s = noteStats.letters[letter] || {n:0, wrong:0, ms:[]};
+  let w = 1;
+  if(s.n < 3) w += 2.5;
+  const errRate = s.n>0 ? s.wrong/s.n : 0;
+  w += errRate * 3;
+  const a = avgMsOf(s);
+  if(a!=null) w += Math.max(0, Math.min(2, (a-1500)/1500)); // 1.5s→0, 4.5s→+2
+  return w;
+}
+function weightedPick(items, weightFn){
+  const ws = items.map(weightFn);
+  const sum = ws.reduce((a,b)=>a+b,0);
+  if(sum<=0) return items[Math.floor(Math.random()*items.length)];
+  let r = Math.random()*sum;
+  for(let i=0;i<items.length;i++){ r-=ws[i]; if(r<=0) return items[i]; }
+  return items[items.length-1];
+}
+
+// 適応モードの開放中の音名
+function unlockedLetters(){
+  const lv = Math.max(3, Math.min(7, noteStats.level||3));
+  return ADAPTIVE_ORDER.slice(0, lv);
+}
+// その音を「習得済み」と見なすか（4回以上・誤答率25%以下）
+function isMastered(letter){
+  const s = noteStats.letters[letter];
+  if(!s || s.n < 4) return false;
+  return (s.wrong/s.n) <= 0.25;
+}
+// 開放中の音がすべて習得済みなら次の音を1つ開放
+function maybeUnlock(){
+  if((noteStats.level||3) >= 7) return;
+  if(unlockedLetters().every(isMastered)) noteStats.level = Math.min(7, (noteStats.level||3)+1);
+}
+
+// 練習画面のヒント（適応の進捗＋苦手な音）を更新
+function updatePracticeHint(){
+  const el = document.getElementById('practiceHint');
+  if(!el) return;
+  if(currentMode!=='note-white'){ el.style.display='none'; return; }
+  const parts = [];
+  if(range==='adaptive'){
+    const lv = unlockedLetters();
+    parts.push(`適応：${lv.map(l=>SOLFEGE[l]).join('')}（${lv.length}/7音）`);
+  }
+  const seen = Object.keys(noteStats.letters).filter(l=>noteStats.letters[l].n>0);
+  const weak = seen
+    .map(l=>({l, w:weightForLetter(l), s:noteStats.letters[l]}))
+    .filter(o=> o.s.wrong>0 || (avgMsOf(o.s)!=null && avgMsOf(o.s)>2200))
+    .sort((a,b)=>b.w-a.w).slice(0,3).map(o=>SOLFEGE[o.l]);
+  if(weak.length) parts.push(`苦手：<b>${weak.join(' ')}</b>`);
+  el.innerHTML = parts.join('　');
+  el.style.display = parts.length ? '' : 'none';
+}
+
 /* ===== 音階読み（白鍵／♯あり） ===== */
 let currentAccidental = '';
 function buildNoteQuestion(){
   const useSharp = (currentMode==='note-sharp');
+  // 白鍵の適応モードは専用の出題ロジックへ
+  if(!useSharp && range==='adaptive'){ buildAdaptiveNoteQuestion(); return; }
+
   const pool = poolFor();
-  currentPos = pool[Math.floor(Math.random()*pool.length)];
+  if(!useSharp){
+    // 白鍵は弱点重み付けで position を選ぶ
+    currentPos = weightedPick(pool, p => weightForLetter(letterTableFor()[p].replace(/[0-9]/g,'')));
+  }else{
+    currentPos = pool[Math.floor(Math.random()*pool.length)];
+  }
   currentFullNote = letterTableFor()[currentPos];
   currentLetter = currentFullNote.replace(/[0-9]/g,'');
 
@@ -799,7 +1030,139 @@ function buildNoteQuestion(){
   }
   drawStaff(currentPos, currentAccidental);
   drawKeyboard(null);
-  renderNoteChoices(useSharp);
+  questionShownTime = Date.now(); // 反応時間の計測開始
+  if(useSharp){ renderNoteChoices(useSharp); }         // ♯ありは従来の4択
+  else { renderSolfegePad(answerViaPad); updatePracticeHint(); } // 白鍵は固定ドレミパッド
+}
+
+// 適応モード：開放中の音名から弱点重み付けで1音を選ぶ
+function buildAdaptiveNoteQuestion(){
+  const posMap = ADAPTIVE_POS[clef] || ADAPTIVE_POS.treble;
+  currentLetter = weightedPick(unlockedLetters(), weightForLetter);
+  currentPos = posMap[currentLetter];
+  currentFullNote = letterTableFor()[currentPos];
+  currentAccidental = '';
+  drawStaff(currentPos, '');
+  drawKeyboard(null);
+  questionShownTime = Date.now();
+  renderSolfegePad(answerViaPad);
+  updatePracticeHint();
+}
+
+/* ===== 固定ドレミパッド（白鍵の音階読み／スピードテスト共通） ===== */
+// onTap(letter, buttonEl) を各モードから渡して回答処理を差し替える
+function renderSolfegePad(onTap){
+  const pad = document.getElementById('solfegePad');
+  pad.innerHTML = '';
+  SOLFEGE_ORDER.forEach(letter=>{
+    const b = document.createElement('button');
+    b.textContent = SOLFEGE[letter];
+    b.dataset.letter = letter;
+    b.addEventListener('click', ()=>onTap(letter, b));
+    pad.appendChild(b);
+  });
+}
+
+// 白鍵の音階読み（練習）でのパッド回答
+function answerViaPad(letter, btnEl){
+  const rt = Date.now() - questionShownTime; // 反応時間
+  const pad = document.getElementById('solfegePad');
+  pad.querySelectorAll('button').forEach(b=>b.disabled=true);
+  const fb = document.getElementById('feedback');
+  const isCorrect = (letter===currentLetter);
+  playNoteByName(currentFullNote);
+  drawKeyboard(currentFullNote);
+  if(isCorrect){
+    btnEl.classList.add('correct');
+    fb.textContent = '正解！ ' + SOLFEGE[currentLetter]; fb.className = 'feedback ok';
+  }else{
+    btnEl.classList.add('wrong');
+    const correctBtn = pad.querySelector('button[data-letter="'+currentLetter+'"]');
+    if(correctBtn) correctBtn.classList.add('reveal');
+    fb.textContent = '正解は ' + SOLFEGE[currentLetter] + ' でした'; fb.className = 'feedback ng';
+  }
+  recordAnswer('note-white', isCorrect);
+  recordNoteStat(currentLetter, isCorrect, isCorrect ? rt : null); // 音別に記録（弱点/適応の材料）
+  updatePracticeHint();
+  setTimeout(newQuestion, 1000);
+}
+
+/* =========================================================
+   Phase3: 音列読み（文脈読み）
+   ・ト音記号 E4〜D5 の範囲で、主に順次進行(±1)/跳躍(±2)の短い音列を出題
+   ・固定ドレミパッドで左から順に読む。1音ごとに反応時間を計測し byNote に記録
+   ========================================================= */
+const SEQ_LEN = 4;
+const SEQ_LO = 0, SEQ_HI = 6; // ト音記号 pos: E4(0)〜D5(6)。pos上昇＝音高上昇
+let seqNotes = [];   // [{pos, full, letter}]
+let seqIdx = 0;
+let seqResults = []; // 'ok' | 'ng'
+
+function seqNoteAt(pos){ const full = TREBLE_LETTERS[pos]; return {pos, full, letter: full.replace(/[0-9]/g,'')}; }
+
+function buildSeqQuestion(){
+  seqNotes = []; seqIdx = 0; seqResults = [];
+  let pos = SEQ_LO + Math.floor(Math.random()*(SEQ_HI-SEQ_LO+1));
+  const moves = [-2,-1,-1,1,1,2]; // 順次進行を多めに、たまに跳躍
+  for(let i=0;i<SEQ_LEN;i++){
+    seqNotes.push(seqNoteAt(pos));
+    let next, tries=0;
+    do{ next = pos + moves[Math.floor(Math.random()*moves.length)]; tries++; }
+    while((next<SEQ_LO || next>SEQ_HI) && tries<10);
+    pos = Math.max(SEQ_LO, Math.min(SEQ_HI, next));
+  }
+  drawStaffSequence(seqNotes, 0, []);
+  renderSolfegePad(answerSeq);
+  const fb = document.getElementById('feedback');
+  fb.textContent = '1音目から順に読もう'; fb.className = 'feedback';
+  questionShownTime = Date.now();
+}
+
+// 複数の音符を五線譜に横並びで描く。現在の音は brass、正誤は緑/赤
+function drawStaffSequence(notes, curIdx, results){
+  const svg = document.getElementById('staffSvg');
+  const baseY = 100, lineGap = 10;
+  let s = '';
+  for(let i=0;i<5;i++){
+    const y = baseY - i*lineGap*2;
+    s += `<line x1="30" y1="${y}" x2="250" y2="${y}" stroke="#20263b" stroke-width="1.4"/>`;
+  }
+  s += `<text x="34" y="${baseY-4}" font-size="62" font-family=serif fill="#20263b">𝄞</text>`;
+  const x0 = 100, dx = notes.length>1 ? Math.min(42, (238-x0)/(notes.length-1)) : 0;
+  notes.forEach((n,i)=>{
+    const x = x0 + i*dx;
+    const y = baseY - n.pos*lineGap;
+    let fill = '#20263b';
+    if(results[i]==='ok') fill = 'var(--good)';
+    else if(results[i]==='ng') fill = 'var(--wine)';
+    else if(i===curIdx) fill = '#a9822f';
+    s += `<ellipse cx="${x}" cy="${y}" rx="8.5" ry="6.7" fill="${fill}" transform="rotate(-18 ${x} ${y})"/>`;
+    if(i===curIdx){ s += `<polygon points="${x-5},${baseY+18} ${x+5},${baseY+18} ${x},${baseY+11}" fill="#a9822f"/>`; }
+  });
+  svg.innerHTML = s;
+}
+
+function answerSeq(letter){
+  if(seqIdx>=seqNotes.length) return;
+  const rt = Date.now() - questionShownTime;
+  const target = seqNotes[seqIdx];
+  const isCorrect = (letter===target.letter);
+  seqResults[seqIdx] = isCorrect ? 'ok' : 'ng';
+  playNoteByName(target.full);
+  const fb = document.getElementById('feedback');
+  if(isCorrect){ fb.textContent = `${seqIdx+1}音目 正解！`; fb.className = 'feedback ok'; }
+  else{ fb.textContent = `${seqIdx+1}音目 は ${SOLFEGE[target.letter]}`; fb.className = 'feedback ng'; }
+  recordAnswer('note-seq', isCorrect);
+  recordNoteStat(target.letter, isCorrect, isCorrect ? rt : null);
+  seqIdx++;
+  drawStaffSequence(seqNotes, seqIdx, seqResults);
+  questionShownTime = Date.now(); // 次の音の計測起点
+  if(seqIdx>=seqNotes.length){
+    const nCorrect = seqResults.filter(r=>r==='ok').length;
+    fb.textContent = `おわり！ ${nCorrect}/${seqNotes.length}音 正解`;
+    fb.className = 'feedback' + (nCorrect===seqNotes.length ? ' ok' : '');
+    setTimeout(()=>{ if(currentMode==='note-seq') buildSeqQuestion(); }, 1200);
+  }
 }
 
 function renderNoteChoices(useSharp){
@@ -843,6 +1206,151 @@ function answerNote(label, btnEl, correctLabel){
   }
   recordAnswer(currentMode, isCorrect);
   setTimeout(newQuestion, 1100);
+}
+
+/* =========================================================
+   スピードテスト（読譜速度のベンチマーク）
+   ・固定分布（ト音記号 C4〜C5 の全7音名を均等に）＋毎回ランダム出題
+   ・練習ログとは別に onpu:tests に保存し、比較可能な「速度トレンド」の源にする
+   ========================================================= */
+const TESTS_KEY = 'onpu:tests';
+const TEST_REPS = 3; // 各音名の出題回数 → 7音×3=21問
+// ト音記号 C4〜C5 の音名→五線譜ポジション（Cは C4/C5 の2箇所）
+const TEST_LETTER_POS = {C:[-2,5], D:[-1], E:[0], F:[1], G:[2], A:[3], B:[4]};
+
+let testActive = false;
+let testQueue = [];
+let testIdx = 0;
+let testCorrect = 0;
+let testRTs = [];      // 正答時の反応時間(ms)。主指標＝この平均
+let testLocked = false;
+
+function loadTests(){
+  try{ const r = localStorage.getItem(TESTS_KEY); return r? JSON.parse(r) : []; }
+  catch(e){ return []; }
+}
+function saveTest(rec){
+  const arr = loadTests();
+  arr.push(rec);
+  try{ localStorage.setItem(TESTS_KEY, JSON.stringify(arr)); }catch(e){ console.error('test save failed', e); }
+  return arr;
+}
+
+// 固定分布のキューを作り、順番だけシャッフルする
+function buildTestQueue(){
+  const q = [];
+  for(let r=0;r<TEST_REPS;r++){
+    SOLFEGE_ORDER.forEach(letter=>{
+      const posArr = TEST_LETTER_POS[letter];
+      const pos = posArr[Math.floor(Math.random()*posArr.length)];
+      q.push({letter, pos});
+    });
+  }
+  for(let i=q.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [q[i],q[j]]=[q[j],q[i]]; }
+  return q;
+}
+
+function startTest(){
+  testActive = true;
+  currentMode = null;
+  clef = 'treble';
+  testQueue = buildTestQueue();
+  testIdx = 0; testCorrect = 0; testRTs = []; testLocked = false;
+
+  document.getElementById('practiceMenu').style.display = 'none';
+  document.getElementById('testResultCard').style.display = 'none';
+  document.getElementById('practiceQuiz').style.display = '';
+  document.getElementById('quizTitle').textContent = 'スピードテスト';
+  // テスト中は五線譜＋固定パッド＋進捗のみ表示
+  document.getElementById('clefRangeRow').style.display = 'none';
+  document.getElementById('keyboardWrap').style.display = 'none';
+  document.getElementById('choiceGrid').style.display = 'none';
+  document.getElementById('kbdPlayWrap').style.display = 'none';
+  document.getElementById('earWrap').style.display = 'none';
+  document.getElementById('staffWrap').style.display = '';
+  document.getElementById('solfegePad').style.display = '';
+  document.querySelector('.score-line').style.display = 'none';
+  document.getElementById('goalLine').style.display = 'none';
+  document.getElementById('practiceHint').style.display = 'none';
+  document.getElementById('testProgressWrap').style.display = '';
+  document.getElementById('testTotal').textContent = testQueue.length;
+  buildTestQuestion();
+}
+
+function buildTestQuestion(){
+  testLocked = false;
+  const item = testQueue[testIdx];
+  currentLetter = item.letter;
+  currentPos = item.pos;
+  currentFullNote = TREBLE_LETTERS[item.pos];
+  drawStaff(item.pos, '');
+  renderSolfegePad(answerTest);
+  const fb = document.getElementById('feedback'); fb.textContent=''; fb.className='feedback';
+  document.getElementById('testDone').textContent = testIdx;
+  document.getElementById('testBarFill').style.width = (testIdx/testQueue.length*100)+'%';
+  questionShownTime = Date.now();
+}
+
+function answerTest(letter, btnEl){
+  if(testLocked) return;
+  testLocked = true;
+  const rt = Date.now() - questionShownTime;
+  const pad = document.getElementById('solfegePad');
+  pad.querySelectorAll('button').forEach(b=>b.disabled=true);
+  const isCorrect = (letter===currentLetter);
+  const fb = document.getElementById('feedback');
+  if(isCorrect){
+    testCorrect++; testRTs.push(rt);
+    btnEl.classList.add('correct');
+    fb.textContent = '✓'; fb.className = 'feedback ok';
+  }else{
+    btnEl.classList.add('wrong');
+    const correctBtn = pad.querySelector('button[data-letter="'+currentLetter+'"]');
+    if(correctBtn) correctBtn.classList.add('reveal');
+    fb.textContent = '正解は ' + SOLFEGE[currentLetter]; fb.className = 'feedback ng';
+  }
+  testIdx++;
+  document.getElementById('testDone').textContent = testIdx;
+  document.getElementById('testBarFill').style.width = (testIdx/testQueue.length*100)+'%';
+  setTimeout(()=>{
+    if(testIdx>=testQueue.length) finishTest();
+    else buildTestQuestion();
+  }, isCorrect?450:850);
+}
+
+async function finishTest(){
+  testActive = false;
+  const total = testQueue.length;
+  const avgMs = testRTs.length? Math.round(testRTs.reduce((a,b)=>a+b,0)/testRTs.length) : null;
+  const acc = Math.round(testCorrect/total*100);
+  const rec = {ts:Date.now(), date:todayStr(), avgMs, correct:testCorrect, total, acc};
+  const tests = saveTest(rec);
+  // その日を「練習した」扱いにしてカレンダーの花丸を付ける
+  const day = await loadDay(todayStr());
+  day.tested = true;
+  await saveDay(todayStr(), day);
+
+  // 結果表示
+  document.getElementById('practiceQuiz').style.display = 'none';
+  document.getElementById('testProgressWrap').style.display = 'none';
+  document.querySelector('.score-line').style.display = '';
+  document.getElementById('testResultCard').style.display = '';
+  document.getElementById('trAvg').textContent = avgMs!=null? (avgMs/1000).toFixed(2) : '–';
+  document.getElementById('trAcc').textContent = acc + '%';
+  document.getElementById('trCount').textContent = testCorrect + '/' + total + '問正解';
+
+  // 前回テストとの差分（速くなった＝良い）
+  const deltaEl = document.getElementById('trDelta');
+  const withRt = tests.filter(t=>t.avgMs!=null);
+  if(withRt.length>=2 && avgMs!=null){
+    const before = withRt[withRt.length-2].avgMs;
+    const d = before - avgMs; // 正なら速くなった
+    if(Math.abs(d) < 20){ deltaEl.textContent = '前回とほぼ同じペースです'; deltaEl.className = 'trend-delta'; }
+    else if(d > 0){ deltaEl.textContent = '前回より ' + (d/1000).toFixed(2) + '秒 速くなりました！'; deltaEl.className = 'trend-delta up'; }
+    else { deltaEl.textContent = '前回より ' + (Math.abs(d)/1000).toFixed(2) + '秒 ゆっくりでした'; deltaEl.className = 'trend-delta down'; }
+  }else{
+    deltaEl.textContent = '最初の記録です。これが上達の基準になります。'; deltaEl.className = 'trend-delta';
+  }
 }
 
 /* =========================================================
@@ -1230,6 +1738,60 @@ let calYear, calMonth;         // 表示中の年・月(0-11)
 let selectedKey = null;        // 現在選択中の日付 'YYYY-MM-DD'
 let diaryLastSeenDay = null;   // 前回この画面を表示したときの日付
 
+/* =========================================================
+   Phase2-⑧: デイリー目標 & 連続記録（習慣化の補助）
+   ========================================================= */
+const SETTINGS_KEY = 'onpu:settings';
+function loadSettings(){
+  try{ const r=localStorage.getItem(SETTINGS_KEY); const o=r?JSON.parse(r):null;
+    if(o && typeof o.dailyGoal==='number') return o; }catch(e){}
+  return {dailyGoal:20};
+}
+function saveSettings(){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }catch(e){ console.error('settings save failed', e); } }
+let settings = loadSettings();
+
+// その日を「練習した」と数えるか（1問以上 or テスト実施）
+function dayCountsPracticed(d){ return (d.total>0) || d.tested; }
+
+// 今日から遡って連続日数を数える（今日が未達でも昨日までの連続は維持）
+async function computeStreak(){
+  let streak = 0;
+  const base = new Date();
+  for(let i=0;i<400;i++){
+    const dt = new Date(base.getFullYear(), base.getMonth(), base.getDate()-i);
+    const key = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+    const d = await loadDay(key);
+    if(dayCountsPracticed(d)) streak++;
+    else if(i===0) continue; // 今日はまだでも途切れさせない
+    else break;
+  }
+  return streak;
+}
+
+// 練習画面のデイリー目標ライン
+async function updateGoalLine(){
+  const el = document.getElementById('goalLine'); if(!el) return;
+  const day = await loadDay(todayStr());
+  const goal = settings.dailyGoal, done = day.total;
+  const pct = goal>0 ? Math.min(100, Math.round(done/goal*100)) : 100;
+  el.innerHTML = done>=goal
+    ? `今日の目標達成！ <b>${done}/${goal}問</b> 🌸`
+    : `今日の目標 <b>${done}/${goal}問</b><div class="goal-bar"><i style="width:${pct}%"></i></div>`;
+  el.style.display = '';
+}
+
+// 日記タブの連続記録カード
+async function renderStreak(){
+  const streak = await computeStreak();
+  const day = await loadDay(todayStr());
+  const goal = settings.dailyGoal;
+  document.getElementById('streakNum').textContent = streak;
+  document.getElementById('goalVal').textContent = goal;
+  document.getElementById('streakGoalStat').innerHTML = day.total>=goal
+    ? `今日の目標達成 🌸（${day.total}/${goal}問）`
+    : `今日 ${day.total}/${goal}問`;
+}
+
 async function renderDiary(){
   const today = todayStr();
   const now = new Date();
@@ -1243,6 +1805,8 @@ async function renderDiary(){
   await renderSelectedDay();
   await renderHistory();
   await renderCalendar();
+  renderSpeedTrend();
+  await renderStreak();
 }
 
 // 選択中の1日を表示・編集する枠
@@ -1260,8 +1824,14 @@ async function renderSelectedDay(){
       <button class="del-song" data-i="${i}">×</button>
     </div>`).join('');
 
+  const dayTests = loadTests().filter(t=>t.date===key && t.avgMs!=null);
+  const bestMs = dayTests.length? Math.min(...dayTests.map(t=>t.avgMs)) : null;
+  const testStat = bestMs!=null
+    ? `<div class="stats">スピードテスト: 最速 ${(bestMs/1000).toFixed(2)}秒／問（${dayTests.length}回）</div>` : '';
+
   el.innerHTML = `
     <div class="stats">練習問題: 合計 ${day.total}問中 ${day.correct}問正解　/　${day.recorded? '録画あり' : '録画なし'}</div>
+    ${testStat}
     ${modeBreakdownHtml(day)}
     <div class="field-label">🎵 今日練習した曲</div>
     <div id="songList">${songRows}</div>
@@ -1331,7 +1901,49 @@ async function renderHistory(){
 // その日に「練習した」と見なすか（1問でも解いた / 曲を記録 / 日記を書いた）
 async function wasPracticed(dateKey){
   const d = await loadDay(dateKey);
-  return d.total>0 || (d.songs && d.songs.length>0) || (d.diary && d.diary.trim().length>0);
+  return d.total>0 || d.tested || (d.songs && d.songs.length>0) || (d.diary && d.diary.trim().length>0);
+}
+
+// 読譜スピードのトレンド（テスト結果の平均反応時間を時系列で描く。速い＝上）
+function renderSpeedTrend(){
+  const box = document.getElementById('speedTrend');
+  if(!box) return;
+  const tests = loadTests().filter(t=>t.avgMs!=null);
+  if(tests.length===0){
+    box.innerHTML = '<small class="hint">まだテストの記録がありません。練習タブの「スピードテスト」を受けると、読譜の速さがここにグラフで残ります。</small>';
+    return;
+  }
+  const data = tests.slice(-20); // 直近20回
+  const vals = data.map(t=>t.avgMs/1000);
+  const maxV = Math.max(...vals), minV = Math.min(...vals);
+  const W=320, H=150, padL=34, padR=10, padT=14, padB=22;
+  const plotW=W-padL-padR, plotH=H-padT-padB;
+  const n=data.length;
+  const span=(maxV-minV)||1;
+  const xAt=i=> n===1 ? padL+plotW/2 : padL + (i/(n-1))*plotW;
+  const yAt=v=> padT + (1-(v-minV)/span)*plotH; // 小さい(速い)ほど上
+
+  let s = `<svg class="trend-chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">`;
+  // 軸
+  s += `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+plotH}" stroke="#dcd3bf"/>`;
+  s += `<line x1="${padL}" y1="${padT+plotH}" x2="${padL+plotW}" y2="${padT+plotH}" stroke="#dcd3bf"/>`;
+  // 縦軸ラベル（上=速い / 下=遅い）
+  s += `<text x="4" y="${padT+8}" font-size="9" fill="#4b526b">速い</text>`;
+  s += `<text x="4" y="${padT+plotH}" font-size="9" fill="#4b526b">遅い</text>`;
+  s += `<text x="${padL-3}" y="${padT+8}" font-size="9" fill="#4b526b" text-anchor="end">${minV.toFixed(1)}s</text>`;
+  s += `<text x="${padL-3}" y="${padT+plotH+3}" font-size="9" fill="#4b526b" text-anchor="end">${maxV.toFixed(1)}s</text>`;
+  // 折れ線＋点
+  const pts = vals.map((v,i)=>`${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`).join(' ');
+  s += `<polyline points="${pts}" fill="none" stroke="#a9822f" stroke-width="2"/>`;
+  vals.forEach((v,i)=>{ s += `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(v).toFixed(1)}" r="3" fill="#7c2f2f"/>`; });
+  s += `</svg>`;
+
+  // 直近リスト（新しい順・最大6件）
+  let list = '';
+  data.slice().reverse().slice(0,6).forEach(t=>{
+    list += `<div class="trend-row"><span>${fmtDate(t.date)}</span><span>${(t.avgMs/1000).toFixed(2)}秒／問・正答率${t.acc}%</span></div>`;
+  });
+  box.innerHTML = s + `<div class="trend-list">${list}</div>`;
 }
 
 async function renderCalendar(){
